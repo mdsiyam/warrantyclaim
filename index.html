@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Warranty Approval System</title>
+  <title>Warranty Claim Test App</title>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; }
@@ -13,10 +13,10 @@
   </style>
 </head>
 <body>
-  <h2>Warranty Approval System</h2>
+  <h2>Warranty Approval System (Test)</h2>
 
   <!-- Login -->
-  <div id="login-section">
+  <div id="login-form">
     <h3>Login</h3>
     <input id="email" type="email" placeholder="Email"><br>
     <input id="password" type="password" placeholder="Password"><br>
@@ -28,7 +28,7 @@
     <button onclick="logout()">Logout</button>
   </div>
 
-  <!-- Claim Form (only for field users) -->
+  <!-- Claim Form -->
   <div id="claim-form" class="hidden">
     <h3>Submit Warranty Claim (Field User)</h3>
     <input id="customer_name" placeholder="Customer Name"><br>
@@ -45,86 +45,47 @@
 
   <!-- Claims List -->
   <div id="claims-list" class="hidden">
-    <h3>Claims</h3>
+    <h3>All Claims</h3>
     <div id="claims"></div>
   </div>
 
 <script>
-  const SUPABASE_URL = "https://vbxnkdwdbowvxuozsroh.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZieG5rZHdkYm93dnh1b3pzcm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkxMjIwODgsImV4cCI6MjA3NDY5ODA4OH0._j9jY5wgNKbXUu2ZMpOx_kx7EVYU99Hi5TYsXR34g9g";
+  // 🔹 Replace with your Supabase project info
+  const SUPABASE_URL = "https://YOUR_PROJECT.supabase.co";
+  const SUPABASE_ANON_KEY = "YOUR_ANON_KEY";
 
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   let currentUser = null;
-  let currentRole = null;
 
+  // Login
   async function login() {
     const email = document.getElementById("email").value;
     const password = document.getElementById("password").value;
 
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) { alert("Login error: " + error.message); return; }
+    if (error) { alert("Login failed: " + error.message); return; }
 
     currentUser = data.user;
-
-    // 🔹 fetch profile by id
-    let { data: profile } = await supabase
-      .from("profiles")
-      .select("id,email,role")
-      .eq("id", currentUser.id)
-      .maybeSingle();
-
-    // if not found, try by email
-    if (!profile) {
-      const { data: byEmail } = await supabase
-        .from("profiles")
-        .select("id,email,role")
-        .eq("email", currentUser.email)
-        .maybeSingle();
-      profile = byEmail;
-    }
-
-    // if still missing, insert default field profile
-    if (!profile) {
-      const { data: inserted, error: insertError } = await supabase
-        .from("profiles")
-        .insert([{ id: currentUser.id, email: currentUser.email, role: "field" }])
-        .select()
-        .maybeSingle();
-      if (insertError) { alert("Error creating profile: " + insertError.message); return; }
-      profile = inserted;
-    }
-
-    if (!profile || !profile.role) {
-      alert("No role found even after insert. Please check DB.");
-      return;
-    }
-
-    currentRole = profile.role;
-    alert("Logged in as: " + currentRole);
-
-    document.getElementById("login-section").classList.add("hidden");
-    document.getElementById("logout-section").classList.remove("hidden");
-
-    if (currentRole === "field") document.getElementById("claim-form").classList.remove("hidden");
+    document.getElementById("login-form").classList.add("hidden");
+    document.getElementById("claim-form").classList.remove("hidden");
     document.getElementById("claims-list").classList.remove("hidden");
-
+    document.getElementById("logout-section").classList.remove("hidden");
     loadClaims();
   }
 
+  // Logout
   async function logout() {
     await supabase.auth.signOut();
     currentUser = null;
-    currentRole = null;
-    document.getElementById("login-section").classList.remove("hidden");
+    document.getElementById("login-form").classList.remove("hidden");
     document.getElementById("claim-form").classList.add("hidden");
     document.getElementById("claims-list").classList.add("hidden");
     document.getElementById("logout-section").classList.add("hidden");
     alert("Logged out successfully!");
   }
 
+  // Submit claim
   async function submitClaim() {
-    if (currentRole !== "field") return;
-
     const claim = {
       customer_name: document.getElementById("customer_name").value,
       machine_model: document.getElementById("machine_model").value,
@@ -134,8 +95,7 @@
       failure_component: document.getElementById("failure_component").value,
       part_no: document.getElementById("part_no").value,
       problem_summary: document.getElementById("problem_summary").value,
-      problem_description: document.getElementById("problem_description").value,
-      user_id: currentUser.id
+      problem_description: document.getElementById("problem_description").value
     };
 
     const { error } = await supabase.from("warranty_claims").insert(claim);
@@ -144,19 +104,13 @@
     loadClaims();
   }
 
+  // Load claims
   async function loadClaims() {
-    let query = supabase.from("warranty_claims").select("*").order("created_at",{ascending:false});
-
-    if (currentRole === "field") {
-      query = query.eq("user_id", currentUser.id);
-    }
-
-    const { data, error } = await query;
+    const { data, error } = await supabase.from("warranty_claims").select("*").order("created_at", { ascending: false });
     if (error) { alert("Error loading claims: " + error.message); return; }
 
     const claimsDiv = document.getElementById("claims");
     claimsDiv.innerHTML = "";
-
     data.forEach(claim => {
       const div = document.createElement("div");
       div.className = "card";
@@ -167,30 +121,18 @@
         Service Approval: ${claim.service_manager_approval || "-"}<br>
         Warranty Approval: ${claim.warranty_manager_approval || "-"}<br>
         Final: ${claim.final_decision || "-"}<br>
+        <button onclick="approveClaim(${claim.id}, 'service')">Service Approve</button>
+        <button onclick="approveClaim(${claim.id}, 'warranty')">Warranty Approve</button>
       `;
-
-      if (currentRole === "service" && !claim.service_manager_approval) {
-        div.innerHTML += `<button onclick="approveClaim(${claim.id}, 'service')">Service Approve</button>`;
-      }
-
-      if (currentRole === "warranty" && claim.service_manager_approval === "Approved" && !claim.warranty_manager_approval) {
-        div.innerHTML += `<button onclick="approveClaim(${claim.id}, 'warranty')">Warranty Approve</button>`;
-      }
-
       claimsDiv.appendChild(div);
     });
   }
 
+  // Approve claim
   async function approveClaim(id, type) {
-    if (currentRole !== "service" && currentRole !== "warranty") return;
-
     let update = {};
-    if (type === "service" && currentRole === "service") {
-      update = { service_manager_approval: "Approved" };
-    }
-    if (type === "warranty" && currentRole === "warranty") {
-      update = { warranty_manager_approval: "Approved", final_decision: "Approved" };
-    }
+    if (type === "service") update = { service_manager_approval: "Approved" };
+    if (type === "warranty") update = { warranty_manager_approval: "Approved" };
 
     const { error } = await supabase.from("warranty_claims").update(update).eq("id", id);
     if (error) { alert("Error: " + error.message); return; }
