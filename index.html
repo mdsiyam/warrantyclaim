@@ -74,6 +74,7 @@
 
     // fetch role from profiles
     const { data: profile } = await supabase.from("profiles").select("role").eq("id", currentUser.id).single();
+    console.log("Fetched profile:", profile, "profileError:", profileError);
     userRole = profile?.role;
 
     document.getElementById("login-form").classList.add("hidden");
