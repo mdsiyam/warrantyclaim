@@ -94,27 +94,33 @@
     </div>
 
     <script type="module">
-        // --- Supabase Configuration ---
-        // NOTE: Replace these with your actual Supabase URL and Anon Key!
-        const SUPABASE_URL = 'https://aixgyrucsbpindbdywea.supabase.co'; 
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFpeGd5cnVjc2JwaW5kYmR5d2VhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkxMzU0MzcsImV4cCI6MjA3NDcxMTQzN30.FJDh0HzJG-wNmUfiAmVPMz66eVm367IhzCD0OFUQDtc'; 
+        // 🚨🚨🚨 ACTION REQUIRED: REPLACE THESE PLACEHOLDERS WITH YOUR ACTUAL SUPABASE CREDENTIALS 🚨🚨🚨
+        const SUPABASE_URL = 'https://vebjjlfjlhobatqqwlfq.supabase.co'; 
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZlYmpqbGZqbGhvYmF0cXF3bGZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkxMzY5NTMsImV4cCI6MjA3NDcxMjk1M30.Ks1ZHFAELRJvh3ppjNdVFPrhiwv7lTYg3mwiLgmSw60'; 
         
         let supabaseClient;
         let isConfigured = true;
 
         if (SUPABASE_URL.includes('YOUR_SUPABASE_PROJECT_URL') || SUPABASE_ANON_KEY.includes('YOUR_SUPABASE_ANON_KEY')) {
-            console.error("Supabase configuration placeholders detected. Authentication and data functions will be disabled.");
+            console.error("FATAL ERROR: Please update SUPABASE_URL and SUPABASE_ANON_KEY in the script block.");
             isConfigured = false;
         }
 
         if (isConfigured) {
              const { createClient } = supabase;
              supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } else {
+             // Display a prominent warning if not configured
+             document.getElementById('auth-form').innerHTML = `
+                 <div class="p-4 bg-red-100 border-l-4 border-red-500 text-red-700 rounded-lg">
+                     <p class="font-bold">Configuration Required!</p>
+                     <p>Please update the <code>SUPABASE_URL</code> and <code>SUPABASE_ANON_KEY</code> variables in the code.</p>
+                 </div>
+             `;
         }
 
         // --- Global State ---
         let currentRole = 'field'; 
-        // currentUser holds { id: uid, name: email, role: '...' }
         let currentUser = null; 
 
         // --- DOM Elements ---
@@ -159,7 +165,8 @@
         window.closeModal = function() {
             modal.classList.add('hidden');
             modal.classList.remove('flex');
-            loadDashboard(); 
+            // Reload the dashboard after modal closes to reflect changes
+            if (currentUser) loadDashboard(); 
         }
         
         let pendingAction = null;
@@ -209,7 +216,7 @@
          * Fetches the user's assigned role from the new user_profiles table.
          */
         async function fetchUserRole(userId) {
-            if (!supabaseClient) return 'field';
+            if (!supabaseClient) return { role: 'field', name: 'CONFIG_ERROR' };
 
             const { data, error } = await supabaseClient
                 .from('user_profiles')
@@ -218,9 +225,9 @@
                 .single();
 
             if (error && error.code !== 'PGRST116') {
-                console.warn("Error fetching user profile:", error.message);
+                console.warn("Error fetching user profile (check RLS on user_profiles):", error.message);
             }
-            // Return role and email for currentUser state
+            // If the user profile doesn't exist (e.g., failed trigger), default to 'field'
             return { 
                 role: data?.role || 'field',
                 name: data?.email || 'Unknown User'
@@ -237,6 +244,7 @@
         }
 
         async function handleSignUp() {
+            if (!isConfigured) return setAuthMessage("System not configured. Update credentials first.", true);
             const email = authEmail.value;
             const password = authPassword.value;
             if (!email || !password) return setAuthMessage("Please enter email and password.");
@@ -253,6 +261,7 @@
         }
 
         async function handleSignIn() {
+            if (!isConfigured) return setAuthMessage("System not configured. Update credentials first.", true);
             const email = authEmail.value;
             const password = authPassword.value;
             if (!email || !password) return setAuthMessage("Please enter email and password.");
@@ -265,37 +274,36 @@
         }
 
         async function handleSignOut() {
+            if (!isConfigured) return;
             const { error } = await supabaseClient.auth.signOut();
             if (error) {
                 console.error("Logout error:", error);
             }
         }
 
-        // --- API Calls ---
+        // --- API Calls (Interacts with RLS) ---
 
         /**
-         * Fetches claims based on the current user's *frontend* role.
+         * Fetches claims based on the current user's *authenticated* session.
          * The results are *filtered* by the RLS policies in the backend.
          */
         async function fetchClaims() {
-            if (!currentUser) return []; 
+            if (!currentUser || !isConfigured) return []; 
 
-            // The query uses SELECT * without any WHERE clause, 
-            // relying entirely on Supabase RLS to filter what is returned.
+            // The query relies entirely on Supabase RLS to filter what is returned
             let query = supabaseClient.from('claims').select('*').order('date_raised', { ascending: false });
             
             const { data, error } = await query;
             if (error) {
-                // If RLS denies access, data will be null and error will be present.
                 console.error(`Error fetching claims as ${currentRole}:`, error);
-                // Return an empty array if the user is unauthorized for this view/data.
+                // RLS likely denied access for this user/data combination
                 return []; 
             }
             return data;
         }
 
         async function submitClaim(claimData) {
-            if (!currentUser) {
+            if (!currentUser || !isConfigured) {
                 showModal('Error', 'You must be logged in to submit a claim.');
                 return;
             }
@@ -311,16 +319,16 @@
                 .select();
             
             if (error) {
-                // RLS will reject this if the user is not authenticated or not allowed to insert (which they should be)
                 console.error('Error submitting claim:', error);
-                showModal('Submission Failed', `There was an error: ${error.message}. Check your RLS policies.`);
+                showModal('Submission Failed', `There was an error: ${error.message}.`);
             } else {
                 showModal('Claim Submitted', `Claim #${data[0].id.substring(0, 8)} has been submitted for SCE approval.`);
+                // The real-time listener will handle dashboard reload
             }
         }
 
         async function updateClaimApproval(claimId, action, notes) {
-            if (!currentUser) {
+            if (!currentUser || !isConfigured) {
                 showModal('Error', 'You must be logged in to approve/reject claims.');
                 return;
             }
@@ -328,7 +336,6 @@
             let updatePayload = {};
             let newStatus;
             let successMessage;
-            let expectedCurrentStatus; // RLS check for target status
 
             if (currentRole === 'sce') {
                 newStatus = action === 'approve' ? 'SCE_Approved' : 'SCE_Rejected';
@@ -340,7 +347,6 @@
                     sce_notes: notes
                 };
                 successMessage = `Claim #${claimId.substring(0, 8)} was ${action === 'approve' ? 'approved' : 'rejected'} by SCE.`;
-                expectedCurrentStatus = 'Submitted';
 
             } else if (currentRole === 'manager') {
                 newStatus = action === 'approve' ? 'Manager_Approved' : 'Manager_Rejected';
@@ -352,7 +358,6 @@
                     manager_notes: notes
                 };
                 successMessage = `Claim #${claimId.substring(0, 8)} was ${action === 'approve' ? 'approved' : 'rejected'} by Manager.`;
-                expectedCurrentStatus = 'SCE_Approved';
             } else {
                 showModal('Error', 'Your current role does not have approval privileges.');
                 return;
@@ -362,23 +367,24 @@
                 .from('claims')
                 .update(updatePayload)
                 .eq('id', claimId);
-                // NOTE: The RLS policy handles checking the current status before UPDATE
 
             if (error) {
                 console.error('Error updating claim status:', error);
-                showModal('Update Failed', `There was an error: ${error.message}. This is likely due to an RLS policy blocking the action or the claim being in the wrong status (${expectedCurrentStatus}).`);
+                showModal('Update Failed', `There was an error: ${error.message}. This is usually an RLS violation (wrong status or wrong role).`);
             } else {
                 showModal('Approval Updated', successMessage);
+                // The real-time listener will handle dashboard reload
             }
         }
         
         window.handleAdminAction = async function(claimId, currentStatus) {
-             if (!currentUser || currentUser.role !== 'admin') {
+             if (!currentUser || currentUser.role !== 'admin' || !isConfigured) {
                 showModal('Error', 'Unauthorized action. Only the authenticated Admin role can perform this.');
                 return;
             }
 
             const isClosed = currentStatus.includes('Closed');
+            // If currently Closed/Admin_Closed, reopen to Submitted. Otherwise, close it.
             const newStatus = isClosed ? 'Submitted' : 'Admin_Closed';
             const action = isClosed ? 'Reopen' : 'Close';
 
@@ -409,7 +415,7 @@
 
         function renderClaimItem(claim, showActions = false, isAdminView = false) {
             const statusClass = getStatusColor(claim.status);
-            const isClosed = claim.status.includes('Closed');
+            const isClosed = claim.status.includes('Approved') || claim.status.includes('Rejected') || claim.status.includes('Closed');
 
             let actionsHtml = '';
             // Only show actions if the user's *actual* role matches the view and the claim isn't closed
@@ -424,8 +430,8 @@
                     </div>
                 `;
             } else if (isAdminView && currentUser.role === 'admin') { 
-                 const actionText = isClosed ? 'Reopen Claim' : 'Close Claim';
-                 const buttonColor = isClosed ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-700 hover:bg-gray-800';
+                 const actionText = (claim.status === 'Admin_Closed' || claim.status === 'Closed') ? 'Reopen Claim' : 'Close Claim';
+                 const buttonColor = (claim.status === 'Admin_Closed' || claim.status === 'Closed') ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-700 hover:bg-gray-800';
                  actionsHtml = `
                     <div class="mt-4">
                         <button onclick="handleAdminAction('${claim.id}', '${claim.status}')" class="w-full ${buttonColor} text-white font-semibold py-2 rounded-lg transition">${actionText}</button>
@@ -435,7 +441,7 @@
             
             const sceDecision = claim.sce_approval_date ? `<p class="text-xs text-gray-500 mt-1">SCE (${claim.sce_approver_id?.substring(0, 8)}): <span class="font-medium">${claim.sce_approved ? 'Approved' : 'Rejected'}</span> on ${formatDate(claim.sce_approval_date)}<span class="ml-2 italic text-gray-400">Notes: ${claim.sce_notes || 'N/A'}</span></p>` : '';
             const managerDecision = claim.manager_approval_date ? `<p class="text-xs text-gray-500 mt-1">Manager (${claim.manager_approver_id?.substring(0, 8)}): <span class="font-medium">${claim.manager_approved ? 'Approved' : 'Rejected'}</span> on ${formatDate(claim.manager_approval_date)}<span class="ml-2 italic text-gray-400">Notes: ${claim.manager_notes || 'N/A'}</span></p>` : '';
-            const adminAction = claim.admin_action_date ? `<p class="text-xs text-red-500 mt-1">Admin Action by ${claim.admin_action_user || 'N/A'}: Status set to ${claim.status.replace('_', ' ')} on ${formatDate(claim.admin_action_date)}</p>` : '';
+            const adminAction = claim.admin_action_date ? `<p class="text-xs ${claim.status.includes('Admin') ? 'text-red-500' : 'text-gray-500'} mt-1">Admin Action by ${claim.admin_action_user || 'N/A'}: Status set to ${claim.status.replace('_', ' ')} on ${formatDate(claim.admin_action_date)}</p>` : '';
 
 
             return `
@@ -448,7 +454,11 @@
                     <p class="text-sm text-gray-600 mb-2">Raised By: <span class="font-medium text-indigo-500">${claim.raised_by}</span> (User ID: ${claim.user_id.substring(0, 8)})</p>
                     <p class="text-sm text-gray-600 mb-4">Serial: <span class="font-medium">${claim.equipment_serial}</span></p>
                     <p class="text-xs text-gray-500">Submitted: ${formatDate(claim.date_raised)}</p>
-                    ${isAdminView ? `<div class="mt-3 p-3 bg-gray-50 rounded-lg space-y-2 border border-gray-200">${sceDecision}${managerDecision}${adminAction}</div>` : ''}
+                    <div class="mt-3 p-3 bg-gray-50 rounded-lg space-y-2 border border-gray-200">
+                        ${sceDecision}
+                        ${managerDecision}
+                        ${adminAction}
+                    </div>
                     ${actionsHtml}
                 </div>
             `;
@@ -538,6 +548,7 @@
         // --- Main Controller ---
 
         function switchDashboard(role) {
+            // Hide all
             fieldDashboard.classList.add('hidden');
             sceDashboard.classList.add('hidden');
             managerDashboard.classList.add('hidden');
@@ -545,6 +556,7 @@
 
             currentRole = role;
 
+            // Show current one
             if (role === 'field') {
                 fieldDashboard.classList.remove('hidden');
             } else if (role === 'sce') {
@@ -563,8 +575,7 @@
 
             loadingDiv.classList.remove('hidden');
             
-            // The fetchClaims function handles role-based filtering logic 
-            // by relying on the RLS policies now!
+            // Fetches data. RLS policies on the backend handle the filtering.
             const claims = await fetchClaims();
             
             loadingDiv.classList.add('hidden');
@@ -643,15 +654,17 @@
         });
         
         if (isConfigured) {
+            // 1. Initial Auth check and setup the listener
             supabaseClient.auth.onAuthStateChange((event, session) => {
                 updateUI(session);
             });
             
-            // Real-time listener: loads the dashboard on any change
+            // 2. Real-time listener: loads the dashboard on any data change
             supabaseClient
                 .channel('claims_channel')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'claims' }, (payload) => {
                     if (currentUser) {
+                         // Only reload if the user is logged in
                          loadDashboard();
                     }
                 })
