@@ -156,9 +156,18 @@
 
         // --- Utility Functions ---
         
-        function showModal(title, message) {
+        function showModal(title, message, isError = false) {
             modalTitle.textContent = title;
             modalMessage.textContent = message;
+            
+            if (isError) {
+                 modalTitle.classList.add('text-red-700');
+                 modalTitle.classList.remove('text-gray-800');
+            } else {
+                 modalTitle.classList.remove('text-red-700');
+                 modalTitle.classList.add('text-gray-800');
+            }
+
             modal.classList.remove('hidden');
             modal.classList.add('flex');
         }
@@ -208,6 +217,11 @@
 
         function formatDate(isoString) {
             if (!isoString) return 'N/A';
+            // Check if it's a date-only string (like YYYY-MM-DD)
+            if (isoString.length === 10 && isoString.includes('-')) {
+                 return new Date(isoString).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+            }
+            // Otherwise, treat as datetime
             return new Date(isoString).toLocaleDateString('en-US', {
                 year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
             });
@@ -228,7 +242,6 @@
 
             if (error && error.code !== 'PGRST116') {
                 console.warn("Error fetching user profile:", error.message);
-                // The RLS fix in the SQL should prevent the 'Unknown User' issue.
             }
             
             return { 
@@ -275,14 +288,24 @@
                 setAuthMessage(`Sign in error: ${error.message}`);
             }
         }
-
+        
+        // MODIFIED: Added detailed error handling for better debugging
         async function handleSignOut() {
             if (!isConfigured) return;
-            const { error } = await supabaseClient.auth.signOut();
-            if (error) {
-                console.error("Logout error:", error);
+            try {
+                const { error } = await supabaseClient.auth.signOut();
+                if (error) {
+                    console.error("Logout error:", error);
+                    showModal('Logout Failed', `There was an issue logging out: ${error.message}`, true);
+                } else {
+                    console.log("Successfully signed out. UI update triggered by onAuthStateChange.");
+                }
+            } catch (e) {
+                console.error("Critical logout exception:", e);
+                showModal('Logout Failed', 'A critical error occurred during logout.', true);
             }
         }
+
 
         // --- API Calls (Interacts with RLS) ---
 
@@ -323,10 +346,7 @@
             
             if (error) {
                 console.error('Error submitting claim:', error);
-                // NOTE: If you get errors here, ensure you have added all the new columns 
-                // (customer_name, machine_model, running_hour, failure_date, failure_component, failure_part_no)
-                // to your Supabase 'claims' table!
-                showModal('Submission Failed', `There was an error: ${error.message}. Please ensure all required columns exist in the 'claims' table.`);
+                showModal('Submission Failed', `There was an error: ${error.message}.`);
             } else {
                 showModal('Claim Submitted', `Claim #${data[0].id.substring(0, 8)} has been submitted for SCE approval.`);
                 // The real-time listener will handle dashboard reload
@@ -774,7 +794,7 @@
         
         signInBtn.addEventListener('click', handleSignIn);
         signUpBtn.addEventListener('click', handleSignUp);
-        logoutBtn.addEventListener('click', handleSignOut);
+        logoutBtn.addEventListener('click', handleSignOut); // This is where the event is attached
 
         roleSelect.addEventListener('change', (e) => {
             // Only admins can change the view
