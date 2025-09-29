@@ -1,144 +1,662 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Warranty Claim Test App</title>
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    input, button { margin: 5px; padding: 6px; }
-    textarea { width: 100%; height: 80px; }
-    .hidden { display: none; }
-    .card { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; border-radius: 6px; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Warranty Approval System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Supabase Client Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f7fafc; }
+        .card { transition: all 0.3s ease; }
+        .card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+        .status-pill { padding: 4px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+        .btn-primary { background-color: #4f46e5; color: white; transition: background-color 0.2s; }
+        .btn-primary:hover { background-color: #4338ca; }
+        .input-field { @apply mt-1 w-full p-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500; }
+        .admin-action-btn { @apply bg-gray-500 text-white font-semibold py-2 px-3 rounded-lg hover:bg-gray-600 transition text-sm; }
+    </style>
 </head>
-<body>
-  <h2>Warranty Approval System (Test)</h2>
+<body class="p-4 sm:p-8">
 
-  <!-- Login -->
-  <div id="login-form">
-    <h3>Login</h3>
-    <input id="email" type="email" placeholder="Email"><br>
-    <input id="password" type="password" placeholder="Password"><br>
-    <button onclick="login()">Login</button>
-  </div>
+    <div id="app" class="max-w-7xl mx-auto">
+        
+        <!-- Header and Role Switcher -->
+        <header class="bg-white shadow-lg p-4 mb-8 rounded-xl flex flex-col md:flex-row justify-between items-center">
+            <h1 class="text-3xl font-bold text-indigo-700 mb-4 md:mb-0">WarrantyFlow</h1>
+            <div id="auth-controls" class="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-4 hidden">
+                <p id="user-info" class="text-sm font-medium text-gray-700"></p>
+                <div class="flex items-center space-x-2">
+                    <label for="role-select" class="font-medium text-gray-700 whitespace-nowrap">View as:</label>
+                    <select id="role-select" class="p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="field">Field Team</option>
+                        <option value="sce">SCE</option>
+                        <option value="manager">Manager</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <button id="logout-btn" class="bg-red-500 text-white py-2 px-4 rounded-lg font-semibold hover:bg-red-600 transition">Logout</button>
+            </div>
+        </header>
 
-  <!-- Logout -->
-  <div id="logout-section" class="hidden">
-    <button onclick="logout()">Logout</button>
-  </div>
+        <!-- Authentication Area -->
+        <div id="auth-container" class="max-w-md mx-auto bg-white p-8 rounded-xl shadow-2xl space-y-6">
+            <h2 class="text-3xl font-bold text-center text-indigo-600">Sign In / Register</h2>
+            <form id="auth-form" class="space-y-4">
+                <p class="text-sm text-center text-gray-500">New users get the **Field Team** role by default (enforced by the database).</p>
+                <div>
+                    <label for="auth-email" class="block text-sm font-medium text-gray-700">Email</label>
+                    <input type="email" id="auth-email" required class="input-field">
+                </div>
+                <div>
+                    <label for="auth-password" class="block text-sm font-medium text-gray-700">Password</label>
+                    <input type="password" id="auth-password" required class="input-field">
+                </div>
+                <div class="flex space-x-4">
+                    <button type="button" id="signin-btn" class="w-1/2 btn-primary py-2 rounded-lg font-semibold">Sign In</button>
+                    <button type="button" id="signup-btn" class="w-1/2 bg-indigo-500 text-white py-2 rounded-lg font-semibold hover:bg-indigo-600 transition">Register</button>
+                </div>
+            </form>
+            <p id="auth-message" class="text-center text-red-500 text-sm hidden"></p>
+        </div>
 
-  <!-- Claim Form -->
-  <div id="claim-form" class="hidden">
-    <h3>Submit Warranty Claim (Field User)</h3>
-    <input id="customer_name" placeholder="Customer Name"><br>
-    <input id="machine_model" placeholder="Machine Model"><br>
-    <input id="serial_no" placeholder="Serial No"><br>
-    <input id="running_hour" placeholder="Running Hours" type="number"><br>
-    <input id="failure_date" type="date"><br>
-    <input id="failure_component" placeholder="Failure Component"><br>
-    <input id="part_no" placeholder="Part No"><br>
-    <input id="problem_summary" placeholder="Problem Summary"><br>
-    <textarea id="problem_description" placeholder="Problem Description"></textarea><br>
-    <button onclick="submitClaim()">Submit Claim</button>
-  </div>
+        <!-- Main Content Area (Hidden until login) -->
+        <div id="content-area" class="hidden">
+            <div id="loading" class="text-center text-indigo-500 p-8">Loading dashboard...</div>
+            <div id="field-dashboard" class="hidden"></div>
+            <div id="sce-dashboard" class="hidden"></div>
+            <div id="manager-dashboard" class="hidden"></div>
+            <div id="admin-dashboard" class="hidden"></div>
+        </div>
 
-  <!-- Claims List -->
-  <div id="claims-list" class="hidden">
-    <h3>All Claims</h3>
-    <div id="claims"></div>
-  </div>
+        <!-- Notification Modal -->
+        <div id="notification-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center p-4 z-40">
+            <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full">
+                <h3 id="modal-title" class="text-xl font-bold mb-3 text-gray-800">Success!</h3>
+                <p id="modal-message" class="text-gray-600 mb-4">Your action was completed successfully.</p>
+                <button onclick="closeModal()" class="w-full btn-primary py-2 rounded-lg font-semibold">Close</button>
+            </div>
+        </div>
+        
+        <!-- Confirmation Modal (Replaces JS confirm()) -->
+        <div id="confirmation-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center p-4 z-50">
+            <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full">
+                <h3 id="confirm-title" class="text-xl font-bold mb-3 text-gray-800">Confirm Action</h3>
+                <p id="confirm-message" class="text-gray-600 mb-4">Are you sure you want to proceed?</p>
+                <div class="flex justify-end space-x-3">
+                    <button id="confirm-cancel" class="bg-gray-200 text-gray-700 py-2 px-4 rounded-lg font-semibold hover:bg-gray-300 transition">Cancel</button>
+                    <button id="confirm-proceed" class="bg-red-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-red-700 transition">Proceed</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-<script>
-  // 🔹 Replace with your Supabase project info
-  const SUPABASE_URL = "https://YOUR_PROJECT.supabase.co";
-  const SUPABASE_ANON_KEY = "YOUR_ANON_KEY";
+    <script type="module">
+        // --- Supabase Configuration ---
+        // NOTE: Replace these with your actual Supabase URL and Anon Key!
+        const SUPABASE_URL = 'https://aixgyrucsbpindbdywea.supabase.co'; 
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFpeGd5cnVjc2JwaW5kYmR5d2VhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkxMzU0MzcsImV4cCI6MjA3NDcxMTQzN30.FJDh0HzJG-wNmUfiAmVPMz66eVm367IhzCD0OFUQDtc'; 
+        
+        let supabaseClient;
+        let isConfigured = true;
 
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  let currentUser = null;
+        if (SUPABASE_URL.includes('YOUR_SUPABASE_PROJECT_URL') || SUPABASE_ANON_KEY.includes('YOUR_SUPABASE_ANON_KEY')) {
+            console.error("Supabase configuration placeholders detected. Authentication and data functions will be disabled.");
+            isConfigured = false;
+        }
 
-  // Login
-  async function login() {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
+        if (isConfigured) {
+             const { createClient } = supabase;
+             supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        }
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) { alert("Login failed: " + error.message); return; }
+        // --- Global State ---
+        let currentRole = 'field'; 
+        // currentUser holds { id: uid, name: email, role: '...' }
+        let currentUser = null; 
 
-    currentUser = data.user;
-    document.getElementById("login-form").classList.add("hidden");
-    document.getElementById("claim-form").classList.remove("hidden");
-    document.getElementById("claims-list").classList.remove("hidden");
-    document.getElementById("logout-section").classList.remove("hidden");
-    loadClaims();
-  }
+        // --- DOM Elements ---
+        const roleSelect = document.getElementById('role-select');
+        const loadingDiv = document.getElementById('loading');
+        const fieldDashboard = document.getElementById('field-dashboard');
+        const sceDashboard = document.getElementById('sce-dashboard');
+        const managerDashboard = document.getElementById('manager-dashboard');
+        const adminDashboard = document.getElementById('admin-dashboard');
+        const authContainer = document.getElementById('auth-container');
+        const contentArea = document.getElementById('content-area');
+        const authControls = document.getElementById('auth-controls');
+        const userInfo = document.getElementById('user-info');
+        
+        const signInBtn = document.getElementById('signin-btn');
+        const signUpBtn = document.getElementById('signup-btn');
+        const logoutBtn = document.getElementById('logout-btn');
+        const authEmail = document.getElementById('auth-email');
+        const authPassword = document.getElementById('auth-password');
+        const authMessage = document.getElementById('auth-message');
 
-  // Logout
-  async function logout() {
-    await supabase.auth.signOut();
-    currentUser = null;
-    document.getElementById("login-form").classList.remove("hidden");
-    document.getElementById("claim-form").classList.add("hidden");
-    document.getElementById("claims-list").classList.add("hidden");
-    document.getElementById("logout-section").classList.add("hidden");
-    alert("Logged out successfully!");
-  }
+        const modal = document.getElementById('notification-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalMessage = document.getElementById('modal-message');
+        
+        const confirmationModal = document.getElementById('confirmation-modal');
+        const confirmTitle = document.getElementById('confirm-title');
+        const confirmMessage = document.getElementById('confirm-message');
+        const confirmCancel = document.getElementById('confirm-cancel');
+        const confirmProceed = document.getElementById('confirm-proceed');
 
-  // Submit claim
-  async function submitClaim() {
-    const claim = {
-      customer_name: document.getElementById("customer_name").value,
-      machine_model: document.getElementById("machine_model").value,
-      serial_no: document.getElementById("serial_no").value,
-      running_hour: parseInt(document.getElementById("running_hour").value),
-      failure_date: document.getElementById("failure_date").value,
-      failure_component: document.getElementById("failure_component").value,
-      part_no: document.getElementById("part_no").value,
-      problem_summary: document.getElementById("problem_summary").value,
-      problem_description: document.getElementById("problem_description").value
-    };
 
-    const { error } = await supabase.from("warranty_claims").insert(claim);
-    if (error) { alert("Error: " + error.message); return; }
-    alert("Claim submitted!");
-    loadClaims();
-  }
+        // --- Utility Functions ---
+        
+        function showModal(title, message) {
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
 
-  // Load claims
-  async function loadClaims() {
-    const { data, error } = await supabase.from("warranty_claims").select("*").order("created_at", { ascending: false });
-    if (error) { alert("Error loading claims: " + error.message); return; }
+        window.closeModal = function() {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            loadDashboard(); 
+        }
+        
+        let pendingAction = null;
+        function showConfirmation(title, message, onConfirm) {
+            confirmTitle.textContent = title;
+            confirmMessage.textContent = message;
+            pendingAction = onConfirm;
 
-    const claimsDiv = document.getElementById("claims");
-    claimsDiv.innerHTML = "";
-    data.forEach(claim => {
-      const div = document.createElement("div");
-      div.className = "card";
-      div.innerHTML = `
-        <b>${claim.customer_name}</b> | ${claim.machine_model} | SN: ${claim.serial_no}<br>
-        Problem: ${claim.problem_summary}<br>
-        Status: ${claim.claim_status || "Pending"}<br>
-        Service Approval: ${claim.service_manager_approval || "-"}<br>
-        Warranty Approval: ${claim.warranty_manager_approval || "-"}<br>
-        Final: ${claim.final_decision || "-"}<br>
-        <button onclick="approveClaim(${claim.id}, 'service')">Service Approve</button>
-        <button onclick="approveClaim(${claim.id}, 'warranty')">Warranty Approve</button>
-      `;
-      claimsDiv.appendChild(div);
-    });
-  }
+            confirmProceed.onclick = () => {
+                confirmationModal.classList.add('hidden');
+                confirmationModal.classList.remove('flex');
+                if (pendingAction) {
+                    pendingAction();
+                }
+            };
+            confirmCancel.onclick = () => {
+                confirmationModal.classList.add('hidden');
+                confirmationModal.classList.remove('flex');
+                pendingAction = null;
+            };
 
-  // Approve claim
-  async function approveClaim(id, type) {
-    let update = {};
-    if (type === "service") update = { service_manager_approval: "Approved" };
-    if (type === "warranty") update = { warranty_manager_approval: "Approved" };
+            confirmationModal.classList.remove('hidden');
+            confirmationModal.classList.add('flex');
+        }
 
-    const { error } = await supabase.from("warranty_claims").update(update).eq("id", id);
-    if (error) { alert("Error: " + error.message); return; }
-    alert("Updated!");
-    loadClaims();
-  }
-</script>
+        function getStatusColor(status) {
+            switch (status) {
+                case 'Submitted': return 'bg-yellow-100 text-yellow-800';
+                case 'SCE_Approved': return 'bg-blue-100 text-blue-800';
+                case 'SCE_Rejected': return 'bg-red-100 text-red-800';
+                case 'Manager_Approved': return 'bg-green-100 text-green-800';
+                case 'Manager_Rejected': return 'bg-red-100 text-red-800';
+                case 'Closed': return 'bg-gray-200 text-gray-700';
+                case 'Admin_Closed': return 'bg-red-200 text-red-900';
+                default: return 'bg-gray-100 text-gray-600';
+            }
+        }
+
+        function formatDate(isoString) {
+            if (!isoString) return 'N/A';
+            return new Date(isoString).toLocaleDateString('en-US', {
+                year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+            });
+        }
+        
+        /**
+         * Fetches the user's assigned role from the new user_profiles table.
+         */
+        async function fetchUserRole(userId) {
+            if (!supabaseClient) return 'field';
+
+            const { data, error } = await supabaseClient
+                .from('user_profiles')
+                .select('role, email')
+                .eq('id', userId)
+                .single();
+
+            if (error && error.code !== 'PGRST116') {
+                console.warn("Error fetching user profile:", error.message);
+            }
+            // Return role and email for currentUser state
+            return { 
+                role: data?.role || 'field',
+                name: data?.email || 'Unknown User'
+            };
+        }
+
+        // --- Authentication Functions ---
+
+        function setAuthMessage(message, isError = true) {
+            authMessage.textContent = message;
+            authMessage.classList.remove('hidden');
+            authMessage.classList.toggle('text-red-500', isError);
+            authMessage.classList.toggle('text-green-500', !isError);
+        }
+
+        async function handleSignUp() {
+            const email = authEmail.value;
+            const password = authPassword.value;
+            if (!email || !password) return setAuthMessage("Please enter email and password.");
+
+            const { data, error } = await supabaseClient.auth.signUp({ email, password });
+
+            if (error) {
+                setAuthMessage(`Sign up error: ${error.message}`);
+            } else if (data.user) {
+                setAuthMessage("Registration successful! Please check your email for confirmation.", false);
+            } else {
+                setAuthMessage("Check your email to confirm registration before signing in.", false);
+            }
+        }
+
+        async function handleSignIn() {
+            const email = authEmail.value;
+            const password = authPassword.value;
+            if (!email || !password) return setAuthMessage("Please enter email and password.");
+
+            const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+            if (error) {
+                setAuthMessage(`Sign in error: ${error.message}`);
+            }
+        }
+
+        async function handleSignOut() {
+            const { error } = await supabaseClient.auth.signOut();
+            if (error) {
+                console.error("Logout error:", error);
+            }
+        }
+
+        // --- API Calls ---
+
+        /**
+         * Fetches claims based on the current user's *frontend* role.
+         * The results are *filtered* by the RLS policies in the backend.
+         */
+        async function fetchClaims() {
+            if (!currentUser) return []; 
+
+            // The query uses SELECT * without any WHERE clause, 
+            // relying entirely on Supabase RLS to filter what is returned.
+            let query = supabaseClient.from('claims').select('*').order('date_raised', { ascending: false });
+            
+            const { data, error } = await query;
+            if (error) {
+                // If RLS denies access, data will be null and error will be present.
+                console.error(`Error fetching claims as ${currentRole}:`, error);
+                // Return an empty array if the user is unauthorized for this view/data.
+                return []; 
+            }
+            return data;
+        }
+
+        async function submitClaim(claimData) {
+            if (!currentUser) {
+                showModal('Error', 'You must be logged in to submit a claim.');
+                return;
+            }
+
+            const { data, error } = await supabaseClient
+                .from('claims')
+                .insert({
+                    ...claimData,
+                    user_id: currentUser.id,
+                    raised_by: currentUser.name, 
+                    status: 'Submitted', 
+                })
+                .select();
+            
+            if (error) {
+                // RLS will reject this if the user is not authenticated or not allowed to insert (which they should be)
+                console.error('Error submitting claim:', error);
+                showModal('Submission Failed', `There was an error: ${error.message}. Check your RLS policies.`);
+            } else {
+                showModal('Claim Submitted', `Claim #${data[0].id.substring(0, 8)} has been submitted for SCE approval.`);
+            }
+        }
+
+        async function updateClaimApproval(claimId, action, notes) {
+            if (!currentUser) {
+                showModal('Error', 'You must be logged in to approve/reject claims.');
+                return;
+            }
+            
+            let updatePayload = {};
+            let newStatus;
+            let successMessage;
+            let expectedCurrentStatus; // RLS check for target status
+
+            if (currentRole === 'sce') {
+                newStatus = action === 'approve' ? 'SCE_Approved' : 'SCE_Rejected';
+                updatePayload = {
+                    status: newStatus,
+                    sce_approved: action === 'approve',
+                    sce_approver_id: currentUser.id,
+                    sce_approval_date: new Date().toISOString(),
+                    sce_notes: notes
+                };
+                successMessage = `Claim #${claimId.substring(0, 8)} was ${action === 'approve' ? 'approved' : 'rejected'} by SCE.`;
+                expectedCurrentStatus = 'Submitted';
+
+            } else if (currentRole === 'manager') {
+                newStatus = action === 'approve' ? 'Manager_Approved' : 'Manager_Rejected';
+                updatePayload = {
+                    status: newStatus,
+                    manager_approved: action === 'approve',
+                    manager_approver_id: currentUser.id,
+                    manager_approval_date: new Date().toISOString(),
+                    manager_notes: notes
+                };
+                successMessage = `Claim #${claimId.substring(0, 8)} was ${action === 'approve' ? 'approved' : 'rejected'} by Manager.`;
+                expectedCurrentStatus = 'SCE_Approved';
+            } else {
+                showModal('Error', 'Your current role does not have approval privileges.');
+                return;
+            }
+
+            const { error } = await supabaseClient
+                .from('claims')
+                .update(updatePayload)
+                .eq('id', claimId);
+                // NOTE: The RLS policy handles checking the current status before UPDATE
+
+            if (error) {
+                console.error('Error updating claim status:', error);
+                showModal('Update Failed', `There was an error: ${error.message}. This is likely due to an RLS policy blocking the action or the claim being in the wrong status (${expectedCurrentStatus}).`);
+            } else {
+                showModal('Approval Updated', successMessage);
+            }
+        }
+        
+        window.handleAdminAction = async function(claimId, currentStatus) {
+             if (!currentUser || currentUser.role !== 'admin') {
+                showModal('Error', 'Unauthorized action. Only the authenticated Admin role can perform this.');
+                return;
+            }
+
+            const isClosed = currentStatus.includes('Closed');
+            const newStatus = isClosed ? 'Submitted' : 'Admin_Closed';
+            const action = isClosed ? 'Reopen' : 'Close';
+
+            showConfirmation(
+                `${action} Claim?`,
+                `Are you sure you want to ${action.toLowerCase()} claim ${claimId.substring(0, 8)}? This will set the status to: ${newStatus.replace('_', ' ')}.`,
+                async () => {
+                    const { error } = await supabaseClient
+                        .from('claims')
+                        .update({ 
+                            status: newStatus,
+                            admin_action_date: new Date().toISOString(),
+                            admin_action_user: currentUser.name
+                        })
+                        .eq('id', claimId);
+        
+                    if (error) {
+                        console.error('Error updating claim status:', error);
+                        showModal('Update Failed', `There was an error: ${error.message}.`);
+                    } else {
+                        showModal('Claim Updated', `Claim #${claimId.substring(0, 8)} was successfully ${newStatus.replace('_', ' ').toLowerCase()}.`);
+                    }
+                }
+            );
+        }
+
+        // --- Dashboard Rendering ---
+
+        function renderClaimItem(claim, showActions = false, isAdminView = false) {
+            const statusClass = getStatusColor(claim.status);
+            const isClosed = claim.status.includes('Closed');
+
+            let actionsHtml = '';
+            // Only show actions if the user's *actual* role matches the view and the claim isn't closed
+            if (showActions && !isClosed && currentUser.role === currentRole) { 
+                actionsHtml = `
+                    <div class="mt-4 flex flex-col space-y-2">
+                        <textarea id="notes-${claim.id}" class="w-full p-2 border border-gray-300 rounded-lg text-sm" placeholder="Add approval/rejection notes..."></textarea>
+                        <div class="flex space-x-2">
+                            <button onclick="handleApprovalClick('${claim.id}', 'approve')" class="w-full bg-green-600 text-white font-semibold py-2 rounded-lg hover:bg-green-700 transition">Approve</button>
+                            <button onclick="handleApprovalClick('${claim.id}', 'reject')" class="w-full bg-red-600 text-white font-semibold py-2 rounded-lg hover:bg-red-700 transition">Reject</button>
+                        </div>
+                    </div>
+                `;
+            } else if (isAdminView && currentUser.role === 'admin') { 
+                 const actionText = isClosed ? 'Reopen Claim' : 'Close Claim';
+                 const buttonColor = isClosed ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-700 hover:bg-gray-800';
+                 actionsHtml = `
+                    <div class="mt-4">
+                        <button onclick="handleAdminAction('${claim.id}', '${claim.status}')" class="w-full ${buttonColor} text-white font-semibold py-2 rounded-lg transition">${actionText}</button>
+                    </div>
+                `;
+            }
+            
+            const sceDecision = claim.sce_approval_date ? `<p class="text-xs text-gray-500 mt-1">SCE (${claim.sce_approver_id?.substring(0, 8)}): <span class="font-medium">${claim.sce_approved ? 'Approved' : 'Rejected'}</span> on ${formatDate(claim.sce_approval_date)}<span class="ml-2 italic text-gray-400">Notes: ${claim.sce_notes || 'N/A'}</span></p>` : '';
+            const managerDecision = claim.manager_approval_date ? `<p class="text-xs text-gray-500 mt-1">Manager (${claim.manager_approver_id?.substring(0, 8)}): <span class="font-medium">${claim.manager_approved ? 'Approved' : 'Rejected'}</span> on ${formatDate(claim.manager_approval_date)}<span class="ml-2 italic text-gray-400">Notes: ${claim.manager_notes || 'N/A'}</span></p>` : '';
+            const adminAction = claim.admin_action_date ? `<p class="text-xs text-red-500 mt-1">Admin Action by ${claim.admin_action_user || 'N/A'}: Status set to ${claim.status.replace('_', ' ')} on ${formatDate(claim.admin_action_date)}</p>` : '';
+
+
+            return `
+                <div class="card bg-white p-6 border border-gray-100 rounded-xl shadow-md">
+                    <div class="flex justify-between items-start mb-3">
+                        <h4 class="text-lg font-semibold text-gray-800">${claim.title}</h4>
+                        <span class="status-pill ${statusClass}">${claim.status.replace('_', ' ')}</span>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-2">Claim ID: <code class="font-mono text-xs">${claim.id.substring(0, 8)}</code></p>
+                    <p class="text-sm text-gray-600 mb-2">Raised By: <span class="font-medium text-indigo-500">${claim.raised_by}</span> (User ID: ${claim.user_id.substring(0, 8)})</p>
+                    <p class="text-sm text-gray-600 mb-4">Serial: <span class="font-medium">${claim.equipment_serial}</span></p>
+                    <p class="text-xs text-gray-500">Submitted: ${formatDate(claim.date_raised)}</p>
+                    ${isAdminView ? `<div class="mt-3 p-3 bg-gray-50 rounded-lg space-y-2 border border-gray-200">${sceDecision}${managerDecision}${adminAction}</div>` : ''}
+                    ${actionsHtml}
+                </div>
+            `;
+        }
+        
+        window.handleApprovalClick = function(claimId, action) {
+            const notesElement = document.getElementById(`notes-${claimId}`);
+            const notes = notesElement ? notesElement.value : '';
+            
+            showConfirmation(
+                `${action.charAt(0).toUpperCase() + action.slice(1)} Claim?`,
+                `Are you sure you want to ${action} claim ${claimId.substring(0, 8)}?`,
+                () => {
+                    updateClaimApproval(claimId, action, notes);
+                }
+            );
+        }
+
+        function renderFieldDashboard(claims) {
+            fieldDashboard.innerHTML = `
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- New Claim Form -->
+                    <div class="lg:col-span-1 bg-white p-6 border border-indigo-100 rounded-xl shadow-lg h-fit">
+                        <h2 class="text-2xl font-bold text-indigo-700 mb-4">New Warranty Claim</h2>
+                        <form id="new-claim-form" class="space-y-4">
+                            <div>
+                                <label for="claim-title" class="block text-sm font-medium text-gray-700">Title (Short Summary)</label>
+                                <input type="text" id="claim-title" required class="input-field">
+                            </div>
+                            <div>
+                                <label for="claim-serial" class="block text-sm font-medium text-gray-700">Equipment Serial Number</label>
+                                <input type="text" id="claim-serial" required class="input-field">
+                            </div>
+                            <div>
+                                <label for="claim-description" class="block text-sm font-medium text-gray-700">Detailed Description of Fault</label>
+                                <textarea id="claim-description" rows="4" required class="input-field"></textarea>
+                            </div>
+                            <button type="submit" class="w-full btn-primary py-2 rounded-lg font-semibold">Submit Claim</button>
+                        </form>
+                    </div>
+
+                    <!-- Submitted Claims List -->
+                    <div class="lg:col-span-2">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4">My Submitted Claims (${claims.length})</h2>
+                        <p class="text-sm text-gray-500 mb-4 border-l-2 pl-3 border-indigo-400 bg-indigo-50 py-2">Data displayed here is filtered by the backend security policies. You only see claims you raised.</p>
+                        <div class="space-y-4">
+                            ${claims.length > 0 ? claims.map(c => renderClaimItem(c)).join('') : '<p class="text-gray-500 p-4 bg-white rounded-lg shadow-sm">No claims submitted yet.</p>'}
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('new-claim-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const title = document.getElementById('claim-title').value;
+                const serial = document.getElementById('claim-serial').value;
+                const description = document.getElementById('claim-description').value;
+
+                await submitClaim({ title, equipment_serial: serial, description });
+                e.target.reset();
+            });
+        }
+
+        function renderApprovalDashboard(claims, title, targetDiv) {
+            targetDiv.innerHTML = `
+                <div class="bg-white p-6 border border-gray-100 rounded-xl shadow-lg">
+                    <h2 class="text-3xl font-bold text-indigo-700 mb-6">${title} (${claims.length})</h2>
+                    <p class="text-sm text-gray-500 mb-4 border-l-2 pl-3 border-indigo-400 bg-indigo-50 py-2">Data displayed here is filtered by the backend security policies. You only see claims ready for your specific approval stage.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        ${claims.length > 0 ? claims.map(c => renderClaimItem(c, true)).join('') : '<p class="text-gray-500">No claims currently pending approval.</p>'}
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderAdminDashboard(claims) {
+            adminDashboard.innerHTML = `
+                <div class="bg-white p-6 border border-gray-100 rounded-xl shadow-lg">
+                    <h2 class="text-3xl font-bold text-red-700 mb-6">Admin Master View (All Claims: ${claims.length})</h2>
+                    <p class="text-sm text-gray-500 mb-4 border-l-2 pl-3 border-red-400 bg-red-50 py-2">As **Admin**, you bypass all RLS filters and see all claims in the database. Use this view for auditing and manual state control.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        ${claims.length > 0 ? claims.map(c => renderClaimItem(c, false, true)).join('') : '<p class="text-gray-500">No claims found in the database.</p>'}
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- Main Controller ---
+
+        function switchDashboard(role) {
+            fieldDashboard.classList.add('hidden');
+            sceDashboard.classList.add('hidden');
+            managerDashboard.classList.add('hidden');
+            adminDashboard.classList.add('hidden');
+
+            currentRole = role;
+
+            if (role === 'field') {
+                fieldDashboard.classList.remove('hidden');
+            } else if (role === 'sce') {
+                sceDashboard.classList.remove('hidden');
+            } else if (role === 'manager') {
+                managerDashboard.classList.remove('hidden');
+            } else if (role === 'admin') { 
+                adminDashboard.classList.remove('hidden');
+            }
+            
+            loadDashboard();
+        }
+
+        async function loadDashboard() {
+            if (!currentUser) return;
+
+            loadingDiv.classList.remove('hidden');
+            
+            // The fetchClaims function handles role-based filtering logic 
+            // by relying on the RLS policies now!
+            const claims = await fetchClaims();
+            
+            loadingDiv.classList.add('hidden');
+
+            if (currentRole === 'field') {
+                renderFieldDashboard(claims);
+            } else if (currentRole === 'sce') {
+                renderApprovalDashboard(claims, 'Claims Pending SCE Approval', sceDashboard);
+            } else if (currentRole === 'manager') {
+                renderApprovalDashboard(claims, 'Claims Pending Manager Approval', managerDashboard);
+            } else if (currentRole === 'admin') {
+                renderAdminDashboard(claims);
+            }
+        }
+
+        /**
+         * Fetches the user's role from the DB and updates UI.
+         */
+        async function updateUI(session) {
+            if (session) {
+                authContainer.classList.add('hidden');
+                contentArea.classList.remove('hidden');
+                authControls.classList.remove('hidden');
+                
+                const { role, name } = await fetchUserRole(session.user.id);
+                
+                currentUser = { 
+                    id: session.user.id, 
+                    name: name,
+                    role: role 
+                };
+                
+                userInfo.textContent = `User: ${currentUser.name} (Role: ${currentUser.role})`;
+                
+                // Set the default dashboard to the user's assigned role
+                roleSelect.value = currentUser.role;
+                currentRole = currentUser.role;
+                
+                // Lock the dropdown unless the user is an Admin
+                roleSelect.disabled = (currentUser.role !== 'admin');
+                if (currentUser.role !== 'admin') {
+                    roleSelect.title = `Access restricted to ${currentUser.role} view.`;
+                } else {
+                     roleSelect.title = `Admin can view all roles.`;
+                }
+                
+                switchDashboard(currentRole);
+
+            } else {
+                currentUser = null;
+                currentRole = 'field'; 
+                authContainer.classList.remove('hidden');
+                contentArea.classList.add('hidden');
+                authControls.classList.add('hidden');
+                
+                authMessage.classList.add('hidden');
+                authEmail.value = '';
+                authPassword.value = '';
+            }
+        }
+
+        // --- Initialization ---
+        
+        signInBtn.addEventListener('click', handleSignIn);
+        signUpBtn.addEventListener('click', handleSignUp);
+        logoutBtn.addEventListener('click', handleSignOut);
+
+        roleSelect.addEventListener('change', (e) => {
+            // Only admins can change the view
+            if (currentUser && currentUser.role === 'admin') {
+                switchDashboard(e.target.value);
+            } else {
+                // If a non-admin somehow bypasses the 'disabled' attribute, reset it
+                e.target.value = currentUser.role;
+            }
+        });
+        
+        if (isConfigured) {
+            supabaseClient.auth.onAuthStateChange((event, session) => {
+                updateUI(session);
+            });
+            
+            // Real-time listener: loads the dashboard on any change
+            supabaseClient
+                .channel('claims_channel')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'claims' }, (payload) => {
+                    if (currentUser) {
+                         loadDashboard();
+                    }
+                })
+                .subscribe();
+        } 
+    </script>
 </body>
 </html>
