@@ -122,6 +122,7 @@
         // --- Global State ---
         let currentRole = 'field'; 
         let currentUser = null; 
+        let profileListener = null; // Variable to hold the role update listener
 
         // --- DOM Elements ---
         const roleSelect = document.getElementById('role-select');
@@ -214,23 +215,25 @@
         
         /**
          * Fetches the user's assigned role from the new user_profiles table.
+         * RLS on user_profiles must be set to allow authenticated users to SELECT their own row.
          */
         async function fetchUserRole(userId) {
             if (!supabaseClient) return { role: 'field', name: 'CONFIG_ERROR' };
 
             const { data, error } = await supabaseClient
                 .from('user_profiles')
-                .select('role, email')
+                .select('role, email') 
                 .eq('id', userId)
                 .single();
 
             if (error && error.code !== 'PGRST116') {
-                console.warn("Error fetching user profile (check RLS on user_profiles):", error.message);
+                console.warn("Error fetching user profile:", error.message);
+                // The RLS fix in the SQL should prevent the 'Unknown User' issue.
             }
-            // If the user profile doesn't exist (e.g., failed trigger), default to 'field'
+            
             return { 
                 role: data?.role || 'field',
-                name: data?.email || 'Unknown User'
+                name: data?.email || 'N/A (Role fetch failed)' 
             };
         }
 
@@ -590,16 +593,50 @@
                 renderAdminDashboard(claims);
             }
         }
+        
+        function startRoleListener(userId) {
+            if (profileListener) {
+                supabaseClient.removeChannel(profileListener);
+            }
+            
+            // Listen for any updates on the user_profiles table.
+            profileListener = supabaseClient
+                .channel('roles_channel')
+                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'user_profiles' }, async (payload) => {
+                    // Check if the update is for the current logged-in user
+                    if (currentUser && payload.new.id === userId) {
+                         console.log("User role update detected via real-time.");
+                         // Force a full UI refresh by getting the latest session and calling updateUI
+                         const { data: { session } } = await supabaseClient.auth.getSession();
+                         if (session) {
+                             updateUI(session);
+                             showModal("Role Updated", `Your role has been updated to **${payload.new.role}**. The dashboard has been refreshed.`);
+                         }
+                    }
+                })
+                .subscribe();
+        }
+
+        function stopRoleListener() {
+            if (profileListener) {
+                supabaseClient.removeChannel(profileListener);
+                profileListener = null;
+            }
+        }
 
         /**
          * Fetches the user's role from the DB and updates UI.
          */
         async function updateUI(session) {
             if (session) {
+                // Start listening for role updates immediately upon login
+                startRoleListener(session.user.id);
+                
                 authContainer.classList.add('hidden');
                 contentArea.classList.remove('hidden');
                 authControls.classList.remove('hidden');
                 
+                // Fetch the role and email (name) using the RLS-fixed policy
                 const { role, name } = await fetchUserRole(session.user.id);
                 
                 currentUser = { 
@@ -625,6 +662,7 @@
                 switchDashboard(currentRole);
 
             } else {
+                stopRoleListener(); // Stop listening on logout
                 currentUser = null;
                 currentRole = 'field'; 
                 authContainer.classList.remove('hidden');
@@ -654,12 +692,12 @@
         });
         
         if (isConfigured) {
-            // 1. Initial Auth check and setup the listener
+            // 1. Initial Auth check and setup the auth listener
             supabaseClient.auth.onAuthStateChange((event, session) => {
                 updateUI(session);
             });
             
-            // 2. Real-time listener: loads the dashboard on any data change
+            // 2. Real-time listener: loads the dashboard on any claims data change
             supabaseClient
                 .channel('claims_channel')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'claims' }, (payload) => {
@@ -669,6 +707,8 @@
                     }
                 })
                 .subscribe();
+            
+            // NOTE: The role listener is now started within updateUI() when a user logs in.
         } 
     </script>
 </body>
