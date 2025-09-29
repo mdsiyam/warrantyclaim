@@ -1,24 +1,23 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>Warranty Claim Workflow</title>
+  <meta charset="UTF-8" />
+  <title>Warranty Approval System</title>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; }
-    input, button, select { margin: 5px; padding: 6px; }
-    textarea { width: 100%; height: 80px; }
     .hidden { display: none; }
-    .card { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; border-radius: 6px; }
-    .status { font-style: italic; color: #555; }
+    .claim-card { border: 1px solid #ccc; padding: 10px; margin: 10px 0; border-radius: 5px; }
+    .pending { color: orange; }
+    .approved { color: green; }
+    .rejected { color: red; }
   </style>
 </head>
 <body>
   <h2>Warranty Approval System</h2>
 
   <!-- Login -->
-  <div id="login-form">
-    <h3>Login</h3>
+  <div id="login-section">
     <input id="email" type="email" placeholder="Email"><br>
     <input id="password" type="password" placeholder="Password"><br>
     <button onclick="login()">Login</button>
@@ -29,164 +28,163 @@
     <button onclick="logout()">Logout</button>
   </div>
 
-  <!-- Field User Dashboard -->
-  <div id="field-dashboard" class="hidden">
-    <h3>Submit Warranty Claim</h3>
+  <!-- Field User: New Claim Form -->
+  <div id="claim-form" class="hidden">
+    <h3>Submit New Claim</h3>
     <input id="customer_name" placeholder="Customer Name"><br>
     <input id="machine_model" placeholder="Machine Model"><br>
     <input id="serial_no" placeholder="Serial No"><br>
-    <input id="running_hour" placeholder="Running Hours" type="number"><br>
-    <input id="failure_date" type="date"><br>
+    <input id="running_hour" placeholder="Running Hour" type="number"><br>
+    <input id="problem" placeholder="Problem"><br>
+    <textarea id="description" placeholder="Description"></textarea><br>
     <input id="failure_component" placeholder="Failure Component"><br>
     <input id="part_no" placeholder="Part No"><br>
-    <input id="problem_summary" placeholder="Problem Summary"><br>
-    <textarea id="problem_description" placeholder="Problem Description"></textarea><br>
+    <input id="failure_date" type="date"><br>
     <button onclick="submitClaim()">Submit Claim</button>
-
-    <h3>My Submitted Claims</h3>
-    <div id="my-claims"></div>
   </div>
 
-  <!-- Manager Dashboard -->
-  <div id="manager-dashboard" class="hidden">
-    <h3>Claims Pending My Approval</h3>
-    <div id="pending-claims"></div>
+  <!-- Claims List -->
+  <div id="claims-list" class="hidden">
+    <h3>Your Claims / Pending Approvals</h3>
+    <div id="claims-container"></div>
   </div>
 
-<script>
-  // 🔹 Replace with your Supabase project info
-  const SUPABASE_URL = "https://vbxnkdwdbowvxuozsroh.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZieG5rZHdkYm93dnh1b3pzcm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkxMjIwODgsImV4cCI6MjA3NDY5ODA4OH0._j9jY5wgNKbXUu2ZMpOx_kx7EVYU99Hi5TYsXR34g9g";
+  <script>
+    const SUPABASE_URL = "https://vbxnkdwdbowvxuozsroh.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZieG5rZHdkYm93dnh1b3pzcm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkxMjIwODgsImV4cCI6MjA3NDY5ODA4OH0._j9jY5wgNKbXUu2ZMpOx_kx7EVYU99Hi5TYsXR34g9g";
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  let currentUser = null;
-  let userRole = null;
+    let currentUser = null;
+    let currentRole = null;
 
-  // Login
-  async function login() {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
+    async function login() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) { alert("Login failed: " + error.message); return; }
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) { alert("Login error: " + error.message); return; }
 
-    currentUser = data.user;
+      currentUser = data.user;
 
-    // fetch role from profiles
-    const { data: profile } = await supabase.from("profiles").select("role").eq("id", currentUser.id).single();
-    console.log("Fetched profile:", profile, "profileError:", profileError);
-    userRole = profile?.role;
+      // Get role from profiles
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", currentUser.id)
+        .single();
 
-    document.getElementById("login-form").classList.add("hidden");
-    document.getElementById("logout-section").classList.remove("hidden");
+      console.log("Fetched profile:", profile, "profileError:", profileError);
 
-    if (userRole === "field") {
-      document.getElementById("field-dashboard").classList.remove("hidden");
-      loadMyClaims();
-    } else if (userRole === "service_manager" || userRole === "warranty_manager") {
-      document.getElementById("manager-dashboard").classList.remove("hidden");
-      loadPendingClaims();
-    } else {
-      alert("Unknown role: " + userRole);
-    }
-  }
+      if (profileError || !profile) {
+        alert("No role found for this user. Please check profiles table.");
+        return;
+      }
 
-  // Logout
-  async function logout() {
-    await supabase.auth.signOut();
-    currentUser = null;
-    userRole = null;
-    document.getElementById("login-form").classList.remove("hidden");
-    document.getElementById("logout-section").classList.add("hidden");
-    document.getElementById("field-dashboard").classList.add("hidden");
-    document.getElementById("manager-dashboard").classList.add("hidden");
-  }
+      currentRole = profile.role;
+      alert("Logged in as: " + currentRole);
 
-  // Submit claim
-  async function submitClaim() {
-    const claim = {
-      customer_name: document.getElementById("customer_name").value,
-      machine_model: document.getElementById("machine_model").value,
-      serial_no: document.getElementById("serial_no").value,
-      running_hour: parseInt(document.getElementById("running_hour").value),
-      failure_date: document.getElementById("failure_date").value,
-      failure_component: document.getElementById("failure_component").value,
-      part_no: document.getElementById("part_no").value,
-      problem_summary: document.getElementById("problem_summary").value,
-      problem_description: document.getElementById("problem_description").value
-    };
+      document.getElementById("login-section").classList.add("hidden");
+      document.getElementById("logout-section").classList.remove("hidden");
 
-    const { error } = await supabase.from("warranty_claims").insert(claim);
-    if (error) { alert("Error: " + error.message); return; }
-    alert("Claim submitted!");
+      if (currentRole === "field") {
+        document.getElementById("claim-form").classList.remove("hidden");
+      }
+      document.getElementById("claims-list").classList.remove("hidden");
 
-    // reset form
-    document.querySelectorAll("#field-dashboard input, #field-dashboard textarea").forEach(el => el.value = "");
-    loadMyClaims();
-  }
-
-  // Load my claims (Field user)
-  async function loadMyClaims() {
-    const { data, error } = await supabase
-      .from("warranty_claims")
-      .select("*")
-      .eq("created_by", currentUser.id)
-      .order("created_at", { ascending: false });
-    if (error) { alert("Error: " + error.message); return; }
-
-    const div = document.getElementById("my-claims");
-    div.innerHTML = "";
-    data.forEach(c => {
-      div.innerHTML += `
-        <div class="card">
-          <b>${c.customer_name}</b> (${c.machine_model})<br>
-          Problem: ${c.problem_summary}<br>
-          <span class="status">Status: ${c.claim_status || "Pending"}</span><br>
-          Service: ${c.service_manager_approval || "-"} | Warranty: ${c.warranty_manager_approval || "-"} | Final: ${c.final_decision || "-"}
-        </div>`;
-    });
-  }
-
-  // Load pending claims (Manager/Warranty)
-  async function loadPendingClaims() {
-    let filter = {};
-    if (userRole === "service_manager") {
-      filter = { column: "claim_status", value: "Pending Service Manager Approval" };
-    } else if (userRole === "warranty_manager") {
-      filter = { column: "claim_status", value: "Pending Warranty Manager Approval" };
+      loadClaims();
     }
 
-    let query = supabase.from("warranty_claims").select("*").order("created_at", { ascending: false });
-    if (filter.value) query = query.eq(filter.column, filter.value);
-    const { data, error } = await query;
-    if (error) { alert("Error loading claims: " + error.message); return; }
+    async function logout() {
+      await supabase.auth.signOut();
+      currentUser = null;
+      currentRole = null;
 
-    const div = document.getElementById("pending-claims");
-    div.innerHTML = "";
-    data.forEach(c => {
-      div.innerHTML += `
-        <div class="card">
-          <b>${c.customer_name}</b> (${c.machine_model}) SN:${c.serial_no}<br>
-          Problem: ${c.problem_summary}<br>
-          Desc: ${c.problem_description}<br>
-          <span class="status">Status: ${c.claim_status}</span><br>
-          ${userRole === "service_manager" ? `<button onclick="approveClaim(${c.id}, 'service')">Approve</button>` : ""}
-          ${userRole === "warranty_manager" ? `<button onclick="approveClaim(${c.id}, 'warranty')">Approve</button>` : ""}
-        </div>`;
-    });
-  }
+      document.getElementById("login-section").classList.remove("hidden");
+      document.getElementById("logout-section").classList.add("hidden");
+      document.getElementById("claim-form").classList.add("hidden");
+      document.getElementById("claims-list").classList.add("hidden");
+      document.getElementById("claims-container").innerHTML = "";
+    }
 
-  // Approve claim
-  async function approveClaim(id, type) {
-    let update = {};
-    if (type === "service") update = { service_manager_approval: "Approved" };
-    if (type === "warranty") update = { warranty_manager_approval: "Approved" };
+    async function submitClaim() {
+      const claim = {
+        customer_name: document.getElementById("customer_name").value,
+        machine_model: document.getElementById("machine_model").value,
+        serial_no: document.getElementById("serial_no").value,
+        running_hour: document.getElementById("running_hour").value,
+        problem: document.getElementById("problem").value,
+        description: document.getElementById("description").value,
+        failure_component: document.getElementById("failure_component").value,
+        part_no: document.getElementById("part_no").value,
+        failure_date: document.getElementById("failure_date").value,
+        created_by: currentUser.id,
+        service_manager_approval: "Pending",
+        warranty_manager_approval: "Pending",
+        final_decision: "Pending"
+      };
 
-    const { error } = await supabase.from("warranty_claims").update(update).eq("id", id);
-    if (error) { alert("Error: " + error.message); return; }
-    alert("Updated!");
-    loadPendingClaims();
-  }
-</script>
+      const { error } = await supabase.from("warranty_claims").insert([claim]);
+      if (error) { alert("Error submitting claim: " + error.message); return; }
+
+      alert("Claim submitted!");
+      document.getElementById("claim-form").reset;
+      loadClaims();
+    }
+
+    async function loadClaims() {
+      let query = supabase.from("warranty_claims").select("*");
+
+      if (currentRole === "field") {
+        query = query.eq("created_by", currentUser.id);
+      } else if (currentRole === "service_manager") {
+        query = query.eq("service_manager_approval", "Pending");
+      } else if (currentRole === "warranty_manager") {
+        query = query.eq("service_manager_approval", "Approved").eq("warranty_manager_approval", "Pending");
+      }
+
+      const { data: claims, error } = await query;
+      if (error) { console.error(error); return; }
+
+      const container = document.getElementById("claims-container");
+      container.innerHTML = "";
+
+      claims.forEach(claim => {
+        const div = document.createElement("div");
+        div.className = "claim-card";
+        div.innerHTML = `
+          <b>${claim.customer_name}</b> (${claim.machine_model}, ${claim.serial_no})<br>
+          Problem: ${claim.problem}<br>
+          Status: Service: <span class="${claim.service_manager_approval.toLowerCase()}">${claim.service_manager_approval}</span>, 
+          Warranty: <span class="${claim.warranty_manager_approval.toLowerCase()}">${claim.warranty_manager_approval}</span>, 
+          Final: <span class="${claim.final_decision.toLowerCase()}">${claim.final_decision}</span><br>
+        `;
+
+        if (currentRole === "service_manager" && claim.service_manager_approval === "Pending") {
+          div.innerHTML += `
+            <button onclick="updateClaim('${claim.id}','service_manager_approval','Approved')">Approve</button>
+            <button onclick="updateClaim('${claim.id}','service_manager_approval','Rejected')">Reject</button>
+          `;
+        }
+
+        if (currentRole === "warranty_manager" && claim.warranty_manager_approval === "Pending") {
+          div.innerHTML += `
+            <button onclick="updateClaim('${claim.id}','warranty_manager_approval','Approved')">Approve</button>
+            <button onclick="updateClaim('${claim.id}','warranty_manager_approval','Rejected')">Reject</button>
+          `;
+        }
+
+        container.appendChild(div);
+      });
+    }
+
+    async function updateClaim(id, field, value) {
+      const { error } = await supabase
+        .from("warranty_claims")
+        .update({ [field]: value })
+        .eq("id", id);
+      if (error) { alert("Error updating claim: " + error.message); return; }
+      loadClaims();
+    }
+  </script>
 </body>
 </html>
