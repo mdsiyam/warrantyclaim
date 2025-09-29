@@ -23,6 +23,11 @@
     <button onclick="login()">Login</button>
   </div>
 
+  <!-- Logout -->
+  <div id="logout-section" class="hidden">
+    <button onclick="logout()">Logout</button>
+  </div>
+
   <!-- Claim Form -->
   <div id="claim-form" class="hidden">
     <h3>Submit Warranty Claim (Field User)</h3>
@@ -52,6 +57,7 @@
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   let currentUser = null;
 
+  // Login
   async function login() {
     const email = document.getElementById("email").value;
     const password = document.getElementById("password").value;
@@ -63,9 +69,22 @@
     document.getElementById("login-form").classList.add("hidden");
     document.getElementById("claim-form").classList.remove("hidden");
     document.getElementById("claims-list").classList.remove("hidden");
+    document.getElementById("logout-section").classList.remove("hidden");
     loadClaims();
   }
 
+  // Logout
+  async function logout() {
+    await supabase.auth.signOut();
+    currentUser = null;
+    document.getElementById("login-form").classList.remove("hidden");
+    document.getElementById("claim-form").classList.add("hidden");
+    document.getElementById("claims-list").classList.add("hidden");
+    document.getElementById("logout-section").classList.add("hidden");
+    alert("Logged out successfully!");
+  }
+
+  // Submit claim
   async function submitClaim() {
     const claim = {
       customer_name: document.getElementById("customer_name").value,
@@ -85,6 +104,7 @@
     loadClaims();
   }
 
+  // Load claims
   async function loadClaims() {
     const { data, error } = await supabase.from("warranty_claims").select("*").order("created_at", { ascending: false });
     if (error) { alert("Error loading claims: " + error.message); return; }
@@ -108,6 +128,7 @@
     });
   }
 
+  // Approve claim
   async function approveClaim(id, type) {
     let update = {};
     if (type === "service") update = { service_manager_approval: "Approved" };
