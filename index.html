@@ -175,6 +175,7 @@
                 document.getElementById('manager-notes').value = claim.manager_notes || '';
                 
                 // Display SCE Notes
+                document.getElementById('sce-review-display').classList.remove('hidden');
                 document.getElementById('sce-notes-display').textContent = claim.sce_notes || 'No notes provided by SCE.';
             } else {
                  document.getElementById('action-header').textContent = 'Claim Details';
@@ -217,6 +218,11 @@
 
         async function initializeFirebase() {
             try {
+                // ADDED GUARD: Check for valid configuration before initialization
+                if (!firebaseConfig || !firebaseConfig.projectId) {
+                    throw new Error("Configuration error: 'projectId' not found. Please ensure the Firebase environment variables are correctly set.");
+                }
+
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
