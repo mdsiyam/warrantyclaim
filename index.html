@@ -66,18 +66,27 @@
 
       currentUser = data.user;
 
-      // Get role from profiles
-      const { data: profile, error: profileError } = await supabase
+      // Try to fetch profile
+      let { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("role")
         .eq("id", currentUser.id)
         .single();
 
-      console.log("Fetched profile:", profile, "profileError:", profileError);
-
+      // If no profile, auto-create one with default role = field
       if (profileError || !profile) {
-        alert("No role found for this user. Please check profiles table.");
-        return;
+        console.log("No profile found, inserting default...");
+        const { data: newProfile, error: insertError } = await supabase
+          .from("profiles")
+          .insert([{ id: currentUser.id, email: currentUser.email, role: "field" }])
+          .select()
+          .single();
+
+        if (insertError) {
+          alert("Could not create profile: " + insertError.message);
+          return;
+        }
+        profile = newProfile;
       }
 
       currentRole = profile.role;
@@ -88,6 +97,8 @@
 
       if (currentRole === "field") {
         document.getElementById("claim-form").classList.remove("hidden");
+      } else {
+        document.getElementById("claim-form").classList.add("hidden");
       }
       document.getElementById("claims-list").classList.remove("hidden");
 
@@ -127,7 +138,7 @@
       if (error) { alert("Error submitting claim: " + error.message); return; }
 
       alert("Claim submitted!");
-      document.getElementById("claim-form").reset;
+      document.getElementById("claim-form").reset(); // FIXED
       loadClaims();
     }
 
