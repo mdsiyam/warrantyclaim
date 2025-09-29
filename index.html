@@ -1,198 +1,233 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Warranty Approval System</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #f7fafc; }
-        .card { transition: all 0.3s ease; }
-        .card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
-        .status-pill { padding: 4px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
-        .btn-primary { background-color: #4f46e5; color: white; transition: background-color 0.2s; }
-        .btn-primary:hover { background-color: #4338ca; }
-        .input-field { @apply mt-1 w-full p-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500; }
-        .admin-action-btn { @apply bg-gray-500 text-white font-semibold py-2 px-3 rounded-lg hover:bg-gray-600 transition text-sm; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Warranty Approval System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; background-color: #f7fafc; }
+    .card { transition: all 0.3s ease; }
+    .card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,.1), 0 4px 6px -2px rgba(0,0,0,.05); }
+    .status-pill { padding: 4px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+  </style>
 </head>
 <body class="p-4 sm:p-8">
 
 <div id="app" class="max-w-7xl mx-auto">
-    <!-- Header, Auth, Content Areas unchanged -->
-    <!-- ... keep all your existing HTML for header, auth, dashboard areas ... -->
 
-    <!-- Notification & Confirmation Modals unchanged -->
+  <!-- ========== AUTH AREA ========== -->
+  <div id="auth-container" class="mb-6">
+    <div class="bg-white p-6 rounded-xl shadow-md">
+      <h2 class="text-xl font-semibold mb-4">Login</h2>
+      <input id="auth-email" type="email" placeholder="Email" class="w-full p-2 border rounded mb-2">
+      <input id="auth-password" type="password" placeholder="Password" class="w-full p-2 border rounded mb-2">
+      <select id="role-select" class="w-full p-2 border rounded mb-2">
+        <option value="field">Field</option>
+        <option value="sce">SCE</option>
+        <option value="manager">Manager</option>
+        <option value="admin">Admin</option>
+      </select>
+      <button id="signin-btn" class="bg-indigo-600 text-white px-4 py-2 rounded">Sign In</button>
+    </div>
+  </div>
+
+  <!-- ========== DASHBOARDS ========== -->
+  <div id="content-area" class="hidden">
+    <div id="field-dashboard" class="hidden"></div>
+    <div id="sce-dashboard" class="hidden"></div>
+    <div id="manager-dashboard" class="hidden"></div>
+    <div id="admin-dashboard" class="hidden"></div>
+  </div>
+
+  <!-- ========== MODALS ========== -->
+  <div id="notification-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center">
+    <div class="bg-white p-6 rounded-lg max-w-sm">
+      <h3 id="modal-title" class="font-bold mb-2">Title</h3>
+      <p id="modal-message" class="mb-4">Message</p>
+      <button onclick="closeModal()" class="bg-indigo-600 text-white px-4 py-2 rounded">OK</button>
+    </div>
+  </div>
+
+  <div id="confirmation-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center">
+    <div class="bg-white p-6 rounded-lg max-w-sm">
+      <h3 id="confirm-title" class="font-bold mb-2">Confirm</h3>
+      <p id="confirm-message" class="mb-4">Are you sure?</p>
+      <div class="flex justify-end space-x-2">
+        <button id="confirm-cancel" class="bg-gray-400 text-white px-4 py-2 rounded">Cancel</button>
+        <button id="confirm-proceed" class="bg-green-600 text-white px-4 py-2 rounded">Proceed</button>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script type="module">
-    const SUPABASE_URL = 'https://vebjjlfjlhobatqqwlfq.supabase.co'; 
-    const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
-    
-    let supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const SUPABASE_URL = "YOUR_SUPABASE_URL";
+  const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    let currentRole = 'field'; 
-    let currentUser = null;
-    let profileListener = null;
+  let currentUser = null;
+  let currentRole = "field";
 
-    const roleSelect = document.getElementById('role-select');
-    const loadingDiv = document.getElementById('loading');
-    const fieldDashboard = document.getElementById('field-dashboard');
-    const sceDashboard = document.getElementById('sce-dashboard');
-    const managerDashboard = document.getElementById('manager-dashboard');
-    const adminDashboard = document.getElementById('admin-dashboard');
-    const authContainer = document.getElementById('auth-container');
-    const contentArea = document.getElementById('content-area');
-    const authControls = document.getElementById('auth-controls');
-    const userInfo = document.getElementById('user-info');
-    
-    const signInBtn = document.getElementById('signin-btn');
-    const signUpBtn = document.getElementById('signup-btn');
-    const logoutBtn = document.getElementById('logout-btn');
-    const authEmail = document.getElementById('auth-email');
-    const authPassword = document.getElementById('auth-password');
-    const authMessage = document.getElementById('auth-message');
+  const roleSelect = document.getElementById("role-select");
+  const authContainer = document.getElementById("auth-container");
+  const contentArea = document.getElementById("content-area");
+  const modal = document.getElementById("notification-modal");
+  const modalTitle = document.getElementById("modal-title");
+  const modalMessage = document.getElementById("modal-message");
 
-    const modal = document.getElementById('notification-modal');
-    const modalTitle = document.getElementById('modal-title');
-    const modalMessage = document.getElementById('modal-message');
-    
-    const confirmationModal = document.getElementById('confirmation-modal');
-    const confirmTitle = document.getElementById('confirm-title');
-    const confirmMessage = document.getElementById('confirm-message');
-    const confirmCancel = document.getElementById('confirm-cancel');
-    const confirmProceed = document.getElementById('confirm-proceed');
+  const confirmationModal = document.getElementById("confirmation-modal");
+  const confirmTitle = document.getElementById("confirm-title");
+  const confirmMessage = document.getElementById("confirm-message");
+  const confirmCancel = document.getElementById("confirm-cancel");
+  const confirmProceed = document.getElementById("confirm-proceed");
 
-    function showModal(title, message, isError = false) {
-        modalTitle.textContent = title;
-        modalMessage.textContent = message;
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
+  function showModal(title, message) {
+    modalTitle.textContent = title;
+    modalMessage.textContent = message;
+    modal.classList.remove("hidden");
+    modal.classList.add("flex");
+  }
+
+  window.closeModal = function () {
+    modal.classList.add("hidden");
+    modal.classList.remove("flex");
+    loadDashboard();
+  };
+
+  let pendingAction = null;
+  function showConfirmation(title, message, onConfirm) {
+    confirmTitle.textContent = title;
+    confirmMessage.textContent = message;
+    pendingAction = onConfirm;
+    confirmProceed.onclick = () => {
+      confirmationModal.classList.add("hidden");
+      confirmationModal.classList.remove("flex");
+      if (pendingAction) pendingAction();
+    };
+    confirmCancel.onclick = () => {
+      confirmationModal.classList.add("hidden");
+      confirmationModal.classList.remove("flex");
+      pendingAction = null;
+    };
+    confirmationModal.classList.remove("hidden");
+    confirmationModal.classList.add("flex");
+  }
+
+  function getStatusColor(status) {
+    switch (status) {
+      case "Submitted": return "bg-yellow-100 text-yellow-800";
+      case "SCE_Approved": return "bg-blue-100 text-blue-800";
+      case "SCE_Rejected": return "bg-red-100 text-red-800";
+      case "Manager_Approved": return "bg-green-100 text-green-800";
+      case "Manager_Rejected": return "bg-red-100 text-red-800";
+      case "Closed": return "bg-gray-200 text-gray-700";
+      default: return "bg-gray-100 text-gray-600";
+    }
+  }
+
+  async function fetchClaims() {
+    const { data, error } = await supabaseClient.from("claims").select("*").order("date_raised", { ascending: false });
+    return data || [];
+  }
+
+  // SCE or Manager update via table update
+  async function updateClaimApproval(claimId, action, notes) {
+    let updatePayload = {}, newStatus;
+    if (currentRole === "sce") {
+      newStatus = action === "approve" ? "SCE_Approved" : "SCE_Rejected";
+      updatePayload = { status: newStatus, sce_approved: action === "approve", sce_approver_id: currentUser.id, sce_approval_date: new Date().toISOString(), sce_notes: notes };
+    } else if (currentRole === "manager") {
+      newStatus = action === "approve" ? "Manager_Approved" : "Manager_Rejected";
+      updatePayload = { status: newStatus, manager_approved: action === "approve", manager_approver_id: currentUser.id, manager_approval_date: new Date().toISOString(), manager_notes: notes };
+    }
+    const { error } = await supabaseClient.from("claims").update(updatePayload).eq("id", claimId);
+    if (error) showModal("Update Failed", error.message);
+    else showModal("Updated", `Claim updated to ${newStatus}`);
+  }
+
+  // NEW: RPC based manager approval
+  async function updateClaimManagerApproval(claimId, action, notes) {
+    const { error } = await supabaseClient.rpc("approve_claim_manager", {
+      claim_id: claimId,
+      approve: action === "approve",
+      notes: notes,
+      user_id: currentUser.id
+    });
+    if (error) showModal("Update Failed", error.message);
+    else showModal("Manager Approval", `Manager ${action}d claim`);
+  }
+
+  window.handleApprovalClick = function (claimId, action) {
+    const notes = document.getElementById(`notes-${claimId}`)?.value || "";
+    showConfirmation("Confirm", `Proceed with ${action}?`, () => updateClaimApproval(claimId, action, notes));
+  };
+
+  function renderClaimItem(claim) {
+    const statusClass = getStatusColor(claim.status);
+    let actionsHtml = "";
+
+    // SCE actions
+    if (currentRole === "sce" && claim.status === "Submitted") {
+      actionsHtml = `
+        <textarea id="notes-${claim.id}" class="w-full p-2 border rounded text-sm" placeholder="Add notes"></textarea>
+        <div class="flex space-x-2 mt-2">
+          <button onclick="handleApprovalClick('${claim.id}','approve')" class="bg-green-600 text-white px-4 py-2 rounded">Approve</button>
+          <button onclick="handleApprovalClick('${claim.id}','reject')" class="bg-red-600 text-white px-4 py-2 rounded">Reject</button>
+        </div>`;
     }
 
-    window.closeModal = function() { modal.classList.add('hidden'); modal.classList.remove('flex'); if(currentUser) loadDashboard(); }
-
-    let pendingAction = null;
-    function showConfirmation(title, message, onConfirm) {
-        confirmTitle.textContent = title;
-        confirmMessage.textContent = message;
-        pendingAction = onConfirm;
-        confirmProceed.onclick = () => { confirmationModal.classList.add('hidden'); confirmationModal.classList.remove('flex'); if (pendingAction) pendingAction(); }
-        confirmCancel.onclick = () => { confirmationModal.classList.add('hidden'); confirmationModal.classList.remove('flex'); pendingAction = null; }
-        confirmationModal.classList.remove('hidden'); confirmationModal.classList.add('flex');
+    // Manager actions via RPC
+    if (currentRole === "manager" && claim.status === "SCE_Approved") {
+      actionsHtml = `
+        <textarea id="manager-notes-${claim.id}" class="w-full p-2 border rounded text-sm" placeholder="Manager notes"></textarea>
+        <div class="flex space-x-2 mt-2">
+          <button onclick="updateClaimManagerApproval('${claim.id}','approve',document.getElementById('manager-notes-${claim.id}').value)" class="bg-green-700 text-white px-4 py-2 rounded">Approve (Manager)</button>
+          <button onclick="updateClaimManagerApproval('${claim.id}','reject',document.getElementById('manager-notes-${claim.id}').value)" class="bg-red-700 text-white px-4 py-2 rounded">Reject (Manager)</button>
+        </div>`;
     }
 
-    function getStatusColor(status) {
-        switch (status) {
-            case 'Submitted': return 'bg-yellow-100 text-yellow-800';
-            case 'SCE_Approved': return 'bg-blue-100 text-blue-800';
-            case 'SCE_Rejected': return 'bg-red-100 text-red-800';
-            case 'Manager_Approved': return 'bg-green-100 text-green-800';
-            case 'Manager_Rejected': return 'bg-red-100 text-red-800';
-            case 'Closed': return 'bg-gray-200 text-gray-700';
-            case 'Admin_Closed': return 'bg-red-200 text-red-900';
-            default: return 'bg-gray-100 text-gray-600';
-        }
-    }
+    return `
+      <div class="card bg-white p-4 mb-3 rounded shadow">
+        <div class="flex justify-between">
+          <span class="font-semibold">${claim.title || "Claim"}</span>
+          <span class="status-pill ${statusClass}">${claim.status}</span>
+        </div>
+        <p class="text-sm text-gray-500">ID: ${claim.id}</p>
+        ${actionsHtml}
+      </div>`;
+  }
 
-    function formatDate(isoString) { if (!isoString) return 'N/A'; return new Date(isoString).toLocaleDateString('en-US'); }
+  async function loadDashboard() {
+    authContainer.classList.add("hidden");
+    contentArea.classList.remove("hidden");
 
-    async function fetchUserRole(userId) {
-        const { data, error } = await supabaseClient.from('user_profiles').select('role, email').eq('id', userId).single();
-        return { role: data?.role || 'field', name: data?.email || 'N/A' };
-    }
+    const claims = await fetchClaims();
 
-    async function fetchClaims() {
-        const { data, error } = await supabaseClient.from('claims').select('*').order('date_raised', { ascending: false });
-        return data || [];
-    }
+    document.getElementById("field-dashboard").classList.add("hidden");
+    document.getElementById("sce-dashboard").classList.add("hidden");
+    document.getElementById("manager-dashboard").classList.add("hidden");
+    document.getElementById("admin-dashboard").classList.add("hidden");
 
-    async function submitClaim(claimData) {
-        const { data, error } = await supabaseClient.from('claims').insert({ ...claimData, user_id: currentUser.id, raised_by: currentUser.name, status: 'Submitted' }).select();
-        if (error) showModal('Submission Failed', error.message);
-        else showModal('Claim Submitted', `Claim #${data[0].id.substring(0, 8)} submitted.`);
-    }
+    let container;
+    if (currentRole === "field") container = document.getElementById("field-dashboard");
+    else if (currentRole === "sce") container = document.getElementById("sce-dashboard");
+    else if (currentRole === "manager") container = document.getElementById("manager-dashboard");
+    else container = document.getElementById("admin-dashboard");
 
-    async function updateClaimApproval(claimId, action, notes) {
-        if (currentRole !== 'sce' && currentRole !== 'manager') return;
-        let updatePayload = {}, newStatus;
-        if (currentRole === 'sce') {
-            newStatus = action === 'approve' ? 'SCE_Approved' : 'SCE_Rejected';
-            updatePayload = { status: newStatus, sce_approved: action === 'approve', sce_approver_id: currentUser.id, sce_approval_date: new Date().toISOString(), sce_notes: notes };
-        } else if (currentRole === 'manager') {
-            newStatus = action === 'approve' ? 'Manager_Approved' : 'Manager_Rejected';
-            updatePayload = { status: newStatus, manager_approved: action === 'approve', manager_approver_id: currentUser.id, manager_approval_date: new Date().toISOString(), manager_notes: notes };
-        }
-        const { error } = await supabaseClient.from('claims').update(updatePayload).eq('id', claimId);
-        if (error) showModal('Update Failed', error.message);
-        else showModal('Approval Updated', `Claim #${claimId.substring(0, 8)} ${action}d.`);
-    }
+    container.classList.remove("hidden");
+    container.innerHTML = claims.map(c => renderClaimItem(c)).join("");
+  }
 
-    // --- NEW: Manager approval RPC call ---
-    async function updateClaimManagerApproval(claimId, action, notes) {
-        if (!currentUser || currentUser.role !== 'manager') { showModal('Error', 'Only Managers can approve/reject claims.'); return; }
-        const { error } = await supabaseClient.rpc('approve_claim_manager', { claim_id: claimId, approve: action==='approve', notes: notes, user_id: currentUser.id });
-        if (error) showModal('Update Failed', error.message);
-        else showModal('Manager Approval Updated', `Claim #${claimId.substring(0,8)} ${action}d by Manager.`);
-    }
-
-    // --- Render Claim Item (Updated with Manager approval button) ---
-    function renderClaimItem(claim, showActions = false, isAdminView = false) {
-        const statusClass = getStatusColor(claim.status);
-        let actionsHtml = '';
-        const isClosed = claim.status.includes('Approved') || claim.status.includes('Rejected') || claim.status.includes('Closed');
-
-        if (showActions && !isClosed && currentUser.role === currentRole) {
-            actionsHtml = `
-                <div class="mt-4 flex flex-col space-y-2">
-                    <textarea id="notes-${claim.id}" class="w-full p-2 border rounded text-sm" placeholder="Add approval/rejection notes..."></textarea>
-                    <div class="flex space-x-2 mt-2">
-                        <button onclick="handleApprovalClick('${claim.id}', 'approve')" class="bg-green-600 text-white py-2 px-4 rounded-lg">Approve</button>
-                        <button onclick="handleApprovalClick('${claim.id}', 'reject')" class="bg-red-600 text-white py-2 px-4 rounded-lg">Reject</button>
-                    </div>
-                </div>
-            `;
-        }
-
-        // --- Manager Button: Only after SCE approval ---
-        if (currentRole === 'manager' && claim.status === 'SCE_Approved') {
-            actionsHtml += `
-                <div class="mt-2 flex flex-col space-y-2">
-                    <textarea id="manager-notes-${claim.id}" class="w-full p-2 border rounded text-sm" placeholder="Add manager notes..."></textarea>
-                    <div class="flex space-x-2 mt-2">
-                        <button onclick="updateClaimManagerApproval('${claim.id}', 'approve', document.getElementById('manager-notes-${claim.id}').value)" class="bg-green-700 text-white py-2 px-4 rounded-lg">Approve (Manager)</button>
-                        <button onclick="updateClaimManagerApproval('${claim.id}', 'reject', document.getElementById('manager-notes-${claim.id}').value)" class="bg-red-700 text-white py-2 px-4 rounded-lg">Reject (Manager)</button>
-                    </div>
-                </div>
-            `;
-        }
-
-        return `
-            <div class="card bg-white p-6 border rounded-xl shadow-md mb-4">
-                <div class="flex justify-between items-start mb-3">
-                    <h4 class="text-lg font-semibold text-gray-800">${claim.title}</h4>
-                    <span class="status-pill ${statusClass}">${claim.status.replace('_',' ')}</span>
-                </div>
-                <p class="text-sm text-gray-600 mb-2">Claim ID: ${claim.id.substring(0,8)}</p>
-                <p class="text-sm text-gray-600 mb-2">Raised By: ${claim.raised_by}</p>
-                ${actionsHtml}
-            </div>
-        `;
-    }
-
-    // --- handleApprovalClick ---
-    window.handleApprovalClick = function(claimId, action) {
-        const notesElement = document.getElementById(`notes-${claimId}`);
-        const notes = notesElement ? notesElement.value : '';
-        showConfirmation(`${action.charAt(0).toUpperCase() + action.slice(1)} Claim?`, `Proceed with ${action}?`, () => updateClaimApproval(claimId, action, notes));
-    }
-
-    // --- Render Dashboards & Main Controller unchanged ---
-    // Include your existing `renderFieldDashboard`, `renderApprovalDashboard`, `renderAdminDashboard`, `switchDashboard`, `loadDashboard`, etc.
-    // They will automatically show the new Manager buttons when role === 'manager' and claim.status === 'SCE_Approved'.
-
+  // Fake sign in just to test
+  document.getElementById("signin-btn").onclick = () => {
+    currentRole = roleSelect.value;
+    currentUser = { id: crypto.randomUUID(), role: currentRole, name: "Demo User" };
+    loadDashboard();
+  };
 </script>
 </body>
 </html>
