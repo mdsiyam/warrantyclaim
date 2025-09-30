@@ -308,12 +308,13 @@
             if (!currentUser || !isConfigured) return []; 
             
             // The query relies entirely on Supabase RLS to filter what is returned.
-            // RLS MUST be configured to enforce that 'field' users only see their own claims.
+            // RLS MUST be configured in the Supabase backend to enforce the claim visibility rules.
             let query = supabaseClient.from('claims').select('*').order('date_raised', { ascending: false });
             
             const { data, error } = await query;
             if (error) {
                 console.error(`Error fetching claims as ${currentRole}:`, error);
+                // The error often indicates an RLS restriction is preventing data return.
                 return []; 
             }
             return data;
@@ -509,7 +510,7 @@
             `;
         }
         
-        // MODIFIED: Shared logic for rendering the expandable claim table - REMOVED INLINE ONCLICK
+        // MODIFIED: Shared logic for rendering the expandable claim table
         function renderClaimTable(claims, showActions = false, isAdminView = false) {
             if (claims.length === 0) {
                 return '<p class="text-gray-500 p-4 bg-white rounded-lg shadow-sm">No claims found for this view.</p>';
@@ -534,7 +535,7 @@
                 
                 // Hidden Details Row (Full Card View)
                 const detailsRow = `
-                    <tr id="${detailsId}" class="hidden">
+                    <tr id="${detailsId}" class="claim-details-row hidden"> 
                         <td colspan="4" class="p-0 border-none">
                             <div class="p-6 bg-white border-t border-indigo-200 w-full">
                                 ${renderClaimItem(claim, showActions, isAdminView)}
@@ -752,6 +753,7 @@
 
             loadingDiv.classList.remove('hidden');
             
+            // This is the call that is filtered by RLS on the Supabase side
             const claims = await fetchClaims();
             
             loadingDiv.classList.add('hidden');
@@ -859,18 +861,16 @@
 
         // --- Event Delegation for Table Row Click (The Fix) ---
         document.addEventListener('click', function(e) {
-            // Find the closest ancestor row that has the 'claim-summary-row' class
+            // Find the closest ancestor element that is a TR with the 'claim-summary-row' class
             let targetRow = e.target.closest('.claim-summary-row');
             
             if (targetRow) {
-                const claimId = targetRow.getAttribute('data-claim-id');
-                const detailsId = `details-${claimId}`;
-                
-                const detailsRow = document.getElementById(detailsId);
-                // Find the icon within the clicked row using the data attribute in the <tr>
+                // Get the TR immediately following the summary row, which is the details row
+                const detailsRow = targetRow.nextElementSibling;
+                // Find the icon within the clicked row to rotate it
                 const icon = targetRow.querySelector('svg'); 
 
-                if (detailsRow) {
+                if (detailsRow && detailsRow.tagName === 'TR') {
                     // Perform the toggle logic
                     if (detailsRow.classList.contains('hidden')) {
                         detailsRow.classList.remove('hidden');
