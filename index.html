@@ -11,11 +11,15 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
-        /* CSS for a separate file/block (as requested) */
+        /* CSS for Visual Overhaul */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
         
         /* General Look and Feel */
-        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; } 
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #1e293b; /* Deep Slate Gray / Indigo background for login screen */
+            min-height: 100vh;
+        } 
         
         /* Utility Classes for Components */
         .status-pill { 
@@ -46,70 +50,91 @@
             box-shadow: 0 6px 10px -2px rgba(0, 0, 0, 0.1);
             z-index: 10;
         }
-        /* Style for the sign-in container (Fixing box length/visual appeal) */
+        
+        /* NEW LOGIN PAGE STYLES */
         #auth-container {
-             /* Increased width, padding, and added a subtle background */
-            max-width: 38rem; 
-            padding: 3rem; 
-            background: linear-gradient(135deg, #ffffff 0%, #f9f9ff 100%);
+             /* Narrower and centered card for maximum focus */
+            max-width: 30rem; 
+            padding: 0;
+            background: #ffffff;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4); 
+            overflow: hidden; 
+            margin-top: -8rem; 
+        }
+
+        /* Styles for the main content area (dashboard) when logged in */
+        #content-area-wrapper {
+            max-width: 80rem; 
+            margin: 0 auto;
+            padding: 1rem 2rem; /* Restore padding for dashboard */
         }
     </style>
 </head>
-<body class="p-4 sm:p-8">
 
-    <div id="app" class="max-w-7xl mx-auto">
-        
-        <header class="bg-white shadow-lg p-4 mb-8 rounded-2xl flex flex-col md:flex-row justify-between items-center sticky top-0 z-10 border-b border-indigo-100">
-            <h1 class="text-3xl font-extrabold text-indigo-700 mb-4 md:mb-0">WarrantyFlow</h1>
-            <div id="auth-controls" class="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-4 hidden">
-                <p id="user-info" class="text-sm font-medium text-gray-700"></p>
-                <div class="flex items-center space-x-2">
-                    <label for="role-select" class="font-medium text-gray-700 whitespace-nowrap">View as:</label>
-                    <select id="role-select" class="p-2 border border-gray-300 rounded-xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition">
-                        <option value="field">Field Team</option>
-                        <option value="sce">SCE</option>
-                        <option value="manager">Manager</option>
-                        <option value="admin">Admin</option>
-                    </select>
-                </div>
-                <button id="logout-btn" class="bg-red-600 text-white py-2 px-4 rounded-xl font-semibold hover:bg-red-700 transition duration-300 hover:scale-[1.05]">
-                    <i class="fas fa-sign-out-alt mr-1"></i>Logout
-                </button>
+<body class="flex flex-col justify-center items-center min-h-screen">
+
+    <header class="bg-white shadow-lg p-4 rounded-2xl flex flex-col md:flex-row justify-between items-center sticky top-4 z-10 border-b border-indigo-100 w-full max-w-7xl mx-auto mb-8">
+        <h1 class="text-3xl font-extrabold text-indigo-700 mb-4 md:mb-0">WarrantyFlow</h1>
+        <div id="auth-controls" class="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-4 hidden">
+            <p id="user-info" class="text-sm font-medium text-gray-700"></p>
+            <div class="flex items-center space-x-2">
+                <label for="role-select" class="font-medium text-gray-700 whitespace-nowrap">View as:</label>
+                <select id="role-select" class="p-2 border border-gray-300 rounded-xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition">
+                    <option value="field">Field Team</option>
+                    <option value="sce">SCE</option>
+                    <option value="manager">Manager</option>
+                    <option value="admin">Admin</option>
+                </select>
             </div>
-        </header>
+            <button id="logout-btn" class="bg-red-600 text-white py-2 px-4 rounded-xl font-semibold hover:bg-red-700 transition duration-300 hover:scale-[1.05]">
+                <i class="fas fa-sign-out-alt mr-1"></i>Logout
+            </button>
+        </div>
+    </header>
 
-        <div id="auth-container" class="mx-auto rounded-2xl shadow-2xl space-y-8">
-            <h2 class="text-4xl font-extrabold text-center text-indigo-700">Welcome Back</h2>
-            <form id="auth-form" class="space-y-6">
-                <p class="text-sm text-center text-gray-500">Sign in to access your dashboard.</p>
-                
-                <div>
-                    <label for="auth-email" class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
-                    <div class="relative">
-                        <i class="fas fa-envelope absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg"></i>
-                        <input type="email" id="auth-email" required class="input-field pl-12" placeholder="user@example.com">
+    <div id="app" class="w-full">
+        
+        <div id="auth-container" class="mx-auto rounded-2xl shadow-2xl">
+            <div class="bg-indigo-600 p-8 text-white rounded-t-2xl">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-tools text-4xl"></i>
+                    <h2 class="text-3xl font-extrabold">WarrantyFlow Login</h2>
+                </div>
+                <p class="text-indigo-200 mt-2">Access your claim management dashboard.</p>
+            </div>
+            
+            <div class="p-8 space-y-6">
+                 <h3 class="text-2xl font-bold text-gray-800">Sign In</h3>
+                 <form id="auth-form" class="space-y-6">
+                    
+                    <div>
+                        <label for="auth-email" class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                        <div class="relative">
+                            <i class="fas fa-envelope absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg"></i>
+                            <input type="email" id="auth-email" required class="input-field pl-12" placeholder="user@example.com">
+                        </div>
                     </div>
-                </div>
-                
-                <div>
-                    <label for="auth-password" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
-                    <div class="relative">
-                        <i class="fas fa-lock absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg"></i>
-                        <input type="password" id="auth-password" required class="input-field pl-12" placeholder="Enter your password">
+                    
+                    <div>
+                        <label for="auth-password" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                        <div class="relative">
+                            <i class="fas fa-lock absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg"></i>
+                            <input type="password" id="auth-password" required class="input-field pl-12" placeholder="Enter your password">
+                        </div>
                     </div>
-                </div>
-                
-                <div class="flex space-x-4 pt-4">
-                    <button type="button" id="signin-btn" class="w-full btn-primary py-3 rounded-xl font-bold flex items-center justify-center space-x-2">
-                        <i class="fas fa-sign-in-alt"></i>
-                        <span>Sign In</span>
-                    </button>
-                </div>
-            </form>
-            <p id="auth-message" class="text-center text-red-500 text-sm hidden"></p>
+                    
+                    <div class="flex space-x-4 pt-4">
+                        <button type="button" id="signin-btn" class="w-full btn-primary py-3 rounded-xl font-bold flex items-center justify-center space-x-2">
+                            <i class="fas fa-sign-in-alt"></i>
+                            <span>Sign In</span>
+                        </button>
+                    </div>
+                </form>
+                <p id="auth-message" class="text-center text-red-500 text-sm hidden"></p>
+            </div>
         </div>
 
-        <div id="content-area" class="hidden">
+        <div id="content-area-wrapper" class="hidden">
             <div id="loading" class="text-center text-indigo-500 p-8">Loading dashboard...</div>
             <div id="field-dashboard" class="hidden"></div>
             <div id="sce-dashboard" class="hidden"></div>
@@ -183,7 +208,7 @@
         const managerDashboard = document.getElementById('manager-dashboard');
         const adminDashboard = document.getElementById('admin-dashboard');
         const authContainer = document.getElementById('auth-container');
-        const contentArea = document.getElementById('content-area');
+        const contentAreaWrapper = document.getElementById('content-area-wrapper');
         const authControls = document.getElementById('auth-controls');
         const userInfo = document.getElementById('user-info');
         
@@ -910,12 +935,16 @@
 
         async function updateUI(session) {
             if (session) {
+                // Logged In State
                 startRoleListener(session.user.id);
                 
                 authContainer.classList.add('hidden');
-                contentArea.classList.remove('hidden');
+                contentAreaWrapper.classList.remove('hidden');
                 authControls.classList.remove('hidden');
                 
+                // Set body background to dashboard color
+                document.body.style.backgroundColor = '#f3f4f6'; 
+
                 const { role, name } = await fetchUserRole(session.user.id);
                 
                 currentUser = { id: session.user.id, name: name, role: role };
@@ -935,13 +964,17 @@
                 switchDashboard(currentRole);
 
             } else {
+                // Logged Out State
                 stopRoleListener(); 
                 currentUser = null;
                 currentRole = 'field'; 
                 authContainer.classList.remove('hidden');
-                contentArea.classList.add('hidden');
+                contentAreaWrapper.classList.add('hidden');
                 authControls.classList.add('hidden');
                 
+                // Set body background to login color
+                document.body.style.backgroundColor = '#1e293b'; 
+
                 authMessage.classList.add('hidden');
                 authEmail.value = '';
                 authPassword.value = '';
@@ -954,7 +987,7 @@
             
             if (targetRow) {
                 const detailsRow = targetRow.nextElementSibling;
-                // Changed querySelector to find the Font Awesome icon 
+                // Font Awesome icon selector
                 const icon = targetRow.querySelector('.fa-chevron-right'); 
 
                 if (detailsRow && detailsRow.tagName === 'TR') {
