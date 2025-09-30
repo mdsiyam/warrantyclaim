@@ -9,7 +9,7 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f7fafc; }
-        /* Removed .card hover effects as they conflict with the new table row view */
+        /* Adjusted styles for the new table structure */
         .status-pill { padding: 4px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
         .btn-primary { background-color: #4f46e5; color: white; transition: background-color 0.2s; }
         .btn-primary:hover { background-color: #4338ca; }
@@ -115,7 +115,7 @@
         // --- Global State ---
         let currentRole = 'field'; 
         let currentUser = null; 
-        let profileListener = null; // Variable to hold the role update listener
+        let profileListener = null; 
 
         // --- DOM Elements ---
         const roleSelect = document.getElementById('role-select');
@@ -222,7 +222,6 @@
         
         /**
          * Fetches the user's assigned role from the new user_profiles table.
-         * RLS on user_profiles must be set to allow authenticated users to SELECT their own row.
          */
         async function fetchUserRole(userId) {
             if (!supabaseClient) return { role: 'field', name: 'CONFIG_ERROR' };
@@ -282,7 +281,6 @@
             }
         }
         
-        // MODIFIED: Added detailed error handling for better debugging
         async function handleSignOut() {
             if (!isConfigured) return;
             try {
@@ -304,7 +302,6 @@
 
         /**
          * Fetches claims based on the current user's *authenticated* session.
-         * The results are *filtered* by the RLS policies in the backend.
          */
         async function fetchClaims() {
             if (!currentUser || !isConfigured) return []; 
@@ -315,7 +312,6 @@
             const { data, error } = await query;
             if (error) {
                 console.error(`Error fetching claims as ${currentRole}:`, error);
-                // RLS likely denied access for this user/data combination
                 return []; 
             }
             return data;
@@ -342,7 +338,6 @@
                 showModal('Submission Failed', `There was an error: ${error.message}.`);
             } else {
                 showModal('Claim Submitted', `Claim #${data[0].id.substring(0, 8)} has been submitted for SCE approval.`);
-                // The real-time listener will handle dashboard reload
             }
         }
 
@@ -392,7 +387,6 @@
                 showModal('Update Failed', `There was an error: ${error.message}. This is usually an RLS violation (wrong status or wrong role).`);
             } else {
                 showModal('Approval Updated', successMessage);
-                // The real-time listener will handle dashboard reload
             }
         }
         
@@ -430,15 +424,29 @@
             );
         }
 
+        /**
+         * New function to toggle the visibility of the detail row.
+         */
+        window.toggleDetails = function(detailsId) {
+            const detailsRow = document.getElementById(detailsId);
+            const icon = document.getElementById(`icon-${detailsId}`);
+            
+            if (detailsRow.classList.contains('hidden')) {
+                detailsRow.classList.remove('hidden');
+                icon.classList.add('rotate-90');
+            } else {
+                detailsRow.classList.add('hidden');
+                icon.classList.remove('rotate-90');
+            }
+        }
+
         // --- Dashboard Rendering ---
 
         /**
          * Renders the full details card for a claim, including actions if allowed.
-         * This function is now primarily used for the hidden details row in the approval tables.
          */
         function renderClaimItem(claim, showActions = false, isAdminView = false) {
             const statusClass = getStatusColor(claim.status);
-            const isClosed = claim.status.includes('Approved') || claim.status.includes('Rejected') || claim.status.includes('Closed');
 
             let actionsHtml = '';
             
@@ -447,7 +455,6 @@
             const isPendingManager = claim.status === 'SCE_Approved' && currentRole === 'manager';
             const showApprovalButtons = showActions && currentUser.role === currentRole && (isPendingSCE || isPendingManager);
             
-            // Only show actions if the user's *actual* role matches the view and the claim is in the correct pending status
             if (showApprovalButtons) { 
                 actionsHtml = `
                     <div class="mt-4 flex flex-col space-y-2">
@@ -472,7 +479,6 @@
             const managerDecision = claim.manager_approval_date ? `<p class="text-xs text-gray-500 mt-1">Manager (${claim.manager_approver_id?.substring(0, 8)}): <span class="font-medium">${claim.manager_approved ? 'Approved' : 'Rejected'}</span> on ${formatDate(claim.manager_approval_date)}<span class="ml-2 italic text-gray-400">Notes: ${claim.manager_notes || 'N/A'}</span></p>` : '';
             const adminAction = claim.admin_action_date ? `<p class="text-xs ${claim.status.includes('Admin') ? 'text-red-500' : 'text-gray-500'} mt-1">Admin Action by ${claim.admin_action_user || 'N/A'}: Status set to ${claim.status.replace('_', ' ')} on ${formatDate(claim.admin_action_date)}</p>` : '';
 
-            // Use shadow-sm instead of shadow-md and remove `card` class for cleaner nesting in table view
             return `
                 <div class="bg-white p-4 border border-gray-100 rounded-xl shadow-sm">
                     <div class="flex justify-between items-start mb-3">
@@ -503,137 +509,45 @@
             `;
         }
         
-        window.handleApprovalClick = function(claimId, action) {
-            const notesElement = document.getElementById(`notes-${claimId}`);
-            const notes = notesElement ? notesElement.value : '';
-            
-            showConfirmation(
-                `${action.charAt(0).toUpperCase() + action.slice(1)} Claim?`,
-                `Are you sure you want to ${action} claim ${claimId.substring(0, 8)}?`,
-                () => {
-                    updateClaimApproval(claimId, action, notes);
-                }
-            );
-        }
-
-        /**
-         * New function to toggle the visibility of the detail row.
-         */
-        window.toggleDetails = function(detailsId) {
-            const detailsRow = document.getElementById(detailsId);
-            const icon = document.getElementById(`icon-${detailsId}`);
-            
-            if (detailsRow.classList.contains('hidden')) {
-                detailsRow.classList.remove('hidden');
-                icon.classList.add('rotate-90');
-            } else {
-                detailsRow.classList.add('hidden');
-                icon.classList.remove('rotate-90');
+        // NEW: Shared logic for rendering the expandable claim table
+        function renderClaimTable(claims, showActions = false, isAdminView = false) {
+            if (claims.length === 0) {
+                return '<p class="text-gray-500 p-4 bg-white rounded-lg shadow-sm">No claims found for this view.</p>';
             }
-        }
 
-
-        function renderFieldDashboard(claims) {
-            fieldDashboard.innerHTML = `
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div class="lg:col-span-1 bg-white p-6 border border-indigo-100 rounded-xl shadow-lg h-fit">
-                        <h2 class="text-2xl font-bold text-indigo-700 mb-4">New Warranty Claim</h2>
-                        <form id="new-claim-form" class="space-y-4">
-                            <h3 class="text-lg font-semibold text-gray-700 border-b pb-1 mb-2">Customer & Machine</h3>
-                            <div>
-                                <label for="customer-name" class="block text-sm font-medium text-gray-700">Customer Name</label>
-                                <input type="text" id="customer-name" required class="input-field">
-                            </div>
-                            <div>
-                                <label for="machine-model" class="block text-sm font-medium text-gray-700">Machine Model</label>
-                                <input type="text" id="machine-model" required class="input-field">
-                            </div>
-                            <div>
-                                <label for="claim-serial" class="block text-sm font-medium text-gray-700">Serial Number</label>
-                                <input type="text" id="claim-serial" required class="input-field">
-                            </div>
-                            <div>
-                                <label for="running-hour" class="block text-sm font-medium text-gray-700">Running Hours (Approx)</label>
-                                <input type="number" id="running-hour" class="input-field" step="1" min="0" placeholder="e.g., 5000">
-                            </div>
-
-                            <h3 class="text-lg font-semibold text-gray-700 border-b pb-1 mb-2 pt-2">Failure Information</h3>
-                            <div>
-                                <label for="failure-date" class="block text-sm font-medium text-gray-700">Failure Date</label>
-                                <input type="date" id="failure-date" required class="input-field">
-                            </div>
-                            <div>
-                                <label for="failure-component" class="block text-sm font-medium text-gray-700">Failure Component</label>
-                                <input type="text" id="failure-component" required class="input-field" placeholder="e.g., Hydraulic Pump, Engine Belt">
-                            </div>
-                            <div>
-                                <label for="failure-part-no" class="block text-sm font-medium text-gray-700">Part No. of Failure Component</label>
-                                <input type="text" id="failure-part-no" class="input-field" placeholder="Optional">
-                            </div>
-                            
-                            <h3 class="text-lg font-semibold text-gray-700 border-b pb-1 mb-2 pt-2">Problem Description</h3>
-                            <div>
-                                <label for="claim-title" class="block text-sm font-medium text-gray-700">Claim Summary / Problem</label>
-                                <input type="text" id="claim-title" required class="input-field" placeholder="Short summary of the issue">
-                            </div>
-                            <div>
-                                <label for="claim-description" class="block text-sm font-medium text-gray-700">Detailed Description of Fault</label>
-                                <textarea id="claim-description" rows="4" required class="input-field"></textarea>
-                            </div>
-
-                            <button type="submit" class="w-full btn-primary py-2 rounded-lg font-semibold">Submit Claim</button>
-                        </form>
-                    </div>
-
-                    <div class="lg:col-span-2">
-                        <h2 class="text-2xl font-bold text-gray-800 mb-4">My Submitted Claims (${claims.length})</h2>
-                        <p class="text-sm text-gray-500 mb-4 border-l-2 pl-3 border-indigo-400 bg-indigo-50 py-2">Data displayed here is filtered by the backend security policies. You only see claims you raised.</p>
-                        <div class="space-y-4">
-                            ${claims.length > 0 ? claims.map(c => renderClaimItem(c)).join('') : '<p class="text-gray-500 p-4 bg-white rounded-lg shadow-sm">No claims submitted yet.</p>'}
-                        </div>
-                    </div>
-                </div>
-            `;
-            document.getElementById('new-claim-form').addEventListener('submit', async (e) => {
-                e.preventDefault();
+            const tableRows = claims.map(claim => {
+                const detailsId = `details-${claim.id}`;
                 
-                // New Fields
-                const customerName = document.getElementById('customer-name').value;
-                const machineModel = document.getElementById('machine-model').value;
-                const runningHour = document.getElementById('running-hour').value;
-                const failureDate = document.getElementById('failure-date').value;
-                const failureComponent = document.getElementById('failure-component').value;
-                const failurePartNo = document.getElementById('failure-part-no').value;
+                // Summary Row (Clickable)
+                const summaryRow = `
+                    <tr onclick="toggleDetails('${detailsId}')" 
+                        class="hover:bg-indigo-50 transition duration-150 ease-in-out cursor-pointer">
+                        <td class="px-6 py-4 font-mono text-sm text-gray-900">${claim.id.substring(0, 8)}</td>
+                        <td class="px-6 py-4 text-sm font-medium text-gray-700">${claim.customer_name || 'N/A'}</td>
+                        <td class="px-6 py-4">
+                            <span class="status-pill ${getStatusColor(claim.status)}">${claim.status.replace('_', ' ')}</span>
+                        </td>
+                        <td class="px-6 py-4 text-sm font-medium text-indigo-600">
+                            <svg id="icon-${detailsId}" class="w-4 h-4 inline-block transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                        </td>
+                    </tr>
+                `;
+                
+                // Hidden Details Row (Full Card View)
+                const detailsRow = `
+                    <tr id="${detailsId}" class="hidden">
+                        <td colspan="4" class="p-0 border-none">
+                            <div class="p-6 bg-white border-t border-indigo-200 w-full">
+                                ${renderClaimItem(claim, showActions, isAdminView)}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                
+                return summaryRow + detailsRow;
+            }).join('');
 
-                // Existing Fields
-                const title = document.getElementById('claim-title').value;
-                const serial = document.getElementById('claim-serial').value;
-                const description = document.getElementById('claim-description').value;
-
-                const claimPayload = { 
-                    title: title, 
-                    equipment_serial: serial, 
-                    description: description,
-                    // New fields for Supabase 'claims' table
-                    customer_name: customerName,
-                    machine_model: machineModel,
-                    running_hour: runningHour ? parseFloat(runningHour) : null,
-                    failure_date: failureDate,
-                    failure_component: failureComponent,
-                    failure_part_no: failurePartNo
-                };
-
-                await submitClaim(claimPayload);
-                e.target.reset();
-            });
-        }
-
-        /**
-         * Renders the SCE and Manager approval dashboards as an expandable table.
-         */
-        function renderApprovalDashboard(claims, title, targetDiv) {
-            
-            const tableHtml = `
+            return `
                 <div class="overflow-x-auto shadow-lg rounded-xl">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-indigo-600">
@@ -645,42 +559,149 @@
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
-                            ${claims.map(claim => {
-                                const detailsId = `details-${claim.id}`;
-                                
-                                // Summary Row (Clickable)
-                                const summaryRow = `
-                                    <tr onclick="toggleDetails('${detailsId}')" 
-                                        class="hover:bg-indigo-50 transition duration-150 ease-in-out cursor-pointer">
-                                        <td class="px-6 py-4 font-mono text-sm text-gray-900">${claim.id.substring(0, 8)}</td>
-                                        <td class="px-6 py-4 text-sm font-medium text-gray-700">${claim.customer_name || 'N/A'}</td>
-                                        <td class="px-6 py-4">
-                                            <span class="status-pill ${getStatusColor(claim.status)}">${claim.status.replace('_', ' ')}</span>
-                                        </td>
-                                        <td class="px-6 py-4 text-sm font-medium text-indigo-600">
-                                            <svg id="icon-${detailsId}" class="w-4 h-4 inline-block transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                                        </td>
-                                    </tr>
-                                `;
-                                
-                                // Hidden Details Row (Full Card View)
-                                const detailsRow = `
-                                    <tr id="${detailsId}" class="hidden">
-                                        <td colspan="4" class="p-0 border-none">
-                                            <div class="p-6 bg-white border-t border-indigo-200 w-full">
-                                                ${renderClaimItem(claim, true)}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                `;
-                                
-                                return summaryRow + detailsRow;
-                            }).join('')}
+                            ${tableRows}
                         </tbody>
                     </table>
                 </div>
             `;
+        }
 
+        /**
+         * New function for Field Dashboard tab switching.
+         */
+        window.switchFieldTab = function(tabName) {
+            const historyTab = document.getElementById('claim-history-tab');
+            const newClaimTab = document.getElementById('new-claim-tab');
+            const historyContent = document.getElementById('claim-history-content');
+            const newClaimContent = document.getElementById('new-claim-content');
+
+            if (tabName === 'history') {
+                historyTab.classList.add('border-indigo-500', 'text-indigo-600');
+                historyTab.classList.remove('border-transparent', 'text-gray-500');
+                newClaimTab.classList.remove('border-indigo-500', 'text-indigo-600');
+                newClaimTab.classList.add('border-transparent', 'text-gray-500');
+                historyContent.classList.remove('hidden');
+                newClaimContent.classList.add('hidden');
+            } else {
+                newClaimTab.classList.add('border-indigo-500', 'text-indigo-600');
+                newClaimTab.classList.remove('border-transparent', 'text-gray-500');
+                historyTab.classList.remove('border-indigo-500', 'text-indigo-600');
+                historyTab.classList.add('border-transparent', 'text-gray-500');
+                newClaimContent.classList.remove('hidden');
+                historyContent.classList.add('hidden');
+            }
+        }
+
+        function renderFieldDashboard(claims) {
+            const claimHistoryTable = renderClaimTable(claims, false, false); // false = no actions, not admin view
+            
+            fieldDashboard.innerHTML = `
+                <div class="bg-white p-6 border border-gray-100 rounded-xl shadow-lg">
+                    <h2 class="text-3xl font-bold text-indigo-700 mb-6">Field Team Dashboard</h2>
+
+                    <div class="border-b border-gray-200 mb-6">
+                        <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                            <button id="new-claim-tab" onclick="switchFieldTab('new')"
+                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-indigo-500 text-indigo-600">
+                                New Claim Submission
+                            </button>
+                            <button id="claim-history-tab" onclick="switchFieldTab('history')"
+                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                                Claim History (${claims.length})
+                            </button>
+                        </nav>
+                    </div>
+
+                    <div id="new-claim-content" class="">
+                        <div class="max-w-xl mx-auto bg-white p-6 border border-indigo-100 rounded-xl shadow-lg h-fit">
+                            <h3 class="text-2xl font-bold text-indigo-700 mb-4">Submit New Claim</h3>
+                            <form id="new-claim-form" class="space-y-4">
+                                <h4 class="text-lg font-semibold text-gray-700 border-b pb-1 mb-2">Customer & Machine</h4>
+                                <div>
+                                    <label for="customer-name" class="block text-sm font-medium text-gray-700">Customer Name</label>
+                                    <input type="text" id="customer-name" required class="input-field">
+                                </div>
+                                <div>
+                                    <label for="machine-model" class="block text-sm font-medium text-gray-700">Machine Model</label>
+                                    <input type="text" id="machine-model" required class="input-field">
+                                </div>
+                                <div>
+                                    <label for="claim-serial" class="block text-sm font-medium text-gray-700">Serial Number</label>
+                                    <input type="text" id="claim-serial" required class="input-field">
+                                </div>
+                                <div>
+                                    <label for="running-hour" class="block text-sm font-medium text-gray-700">Running Hours (Approx)</label>
+                                    <input type="number" id="running-hour" class="input-field" step="1" min="0" placeholder="e.g., 5000">
+                                </div>
+
+                                <h4 class="text-lg font-semibold text-gray-700 border-b pb-1 mb-2 pt-2">Failure Information</h4>
+                                <div>
+                                    <label for="failure-date" class="block text-sm font-medium text-gray-700">Failure Date</label>
+                                    <input type="date" id="failure-date" required class="input-field">
+                                </div>
+                                <div>
+                                    <label for="failure-component" class="block text-sm font-medium text-gray-700">Failure Component</label>
+                                    <input type="text" id="failure-component" required class="input-field" placeholder="e.g., Hydraulic Pump, Engine Belt">
+                                </div>
+                                <div>
+                                    <label for="failure-part-no" class="block text-sm font-medium text-gray-700">Part No. of Failure Component</label>
+                                    <input type="text" id="failure-part-no" class="input-field" placeholder="Optional">
+                                </div>
+                                
+                                <h4 class="text-lg font-semibold text-gray-700 border-b pb-1 mb-2 pt-2">Problem Description</h4>
+                                <div>
+                                    <label for="claim-title" class="block text-sm font-medium text-gray-700">Claim Summary / Problem</label>
+                                    <input type="text" id="claim-title" required class="input-field" placeholder="Short summary of the issue">
+                                </div>
+                                <div>
+                                    <label for="claim-description" class="block text-sm font-medium text-gray-700">Detailed Description of Fault</label>
+                                    <textarea id="claim-description" rows="4" required class="input-field"></textarea>
+                                </div>
+
+                                <button type="submit" class="w-full btn-primary py-2 rounded-lg font-semibold">Submit Claim</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div id="claim-history-content" class="hidden">
+                        <p class="text-sm text-gray-500 mb-4 border-l-2 pl-3 border-indigo-400 bg-indigo-50 py-2">Data displayed here is filtered by the backend security policies. You only see claims you raised.</p>
+                        ${claimHistoryTable}
+                    </div>
+                </div>
+            `;
+            
+            // Reattach form submission listener
+            document.getElementById('new-claim-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                // Get form fields
+                const customerName = document.getElementById('customer-name').value;
+                const machineModel = document.getElementById('machine-model').value;
+                const runningHour = document.getElementById('running-hour').value;
+                const failureDate = document.getElementById('failure-date').value;
+                const failureComponent = document.getElementById('failure-component').value;
+                const failurePartNo = document.getElementById('failure-part-no').value;
+                const title = document.getElementById('claim-title').value;
+                const serial = document.getElementById('claim-serial').value;
+                const description = document.getElementById('claim-description').value;
+
+                const claimPayload = { 
+                    title: title, equipment_serial: serial, description: description,
+                    customer_name: customerName, machine_model: machineModel,
+                    running_hour: runningHour ? parseFloat(runningHour) : null,
+                    failure_date: failureDate, failure_component: failureComponent,
+                    failure_part_no: failurePartNo
+                };
+
+                await submitClaim(claimPayload);
+                e.target.reset();
+                switchFieldTab('history'); // Switch to history after submission
+            });
+        }
+        
+        // MODIFIED: Simplified to use the common table rendering logic
+        function renderApprovalDashboard(claims, title, targetDiv) {
+            const tableHtml = renderClaimTable(claims, true); // true = show approval actions
             targetDiv.innerHTML = `
                 <div class="bg-white p-6 border border-gray-100 rounded-xl shadow-lg">
                     <h2 class="text-3xl font-bold text-indigo-700 mb-6">${title} (${claims.length})</h2>
@@ -690,14 +711,14 @@
             `;
         }
         
+        // MODIFIED: Switched from card grid to expandable table
         function renderAdminDashboard(claims) {
+            const tableHtml = renderClaimTable(claims, false, true); // false = no approval actions, true = is Admin view
             adminDashboard.innerHTML = `
                 <div class="bg-white p-6 border border-gray-100 rounded-xl shadow-lg">
                     <h2 class="text-3xl font-bold text-red-700 mb-6">Admin Master View (All Claims: ${claims.length})</h2>
-                    <p class="text-sm text-gray-500 mb-4 border-l-2 pl-3 border-red-400 bg-red-50 py-2">As **Admin**, you bypass all RLS filters and see all claims in the database. Use this view for auditing and manual state control.</p>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        ${claims.length > 0 ? claims.map(c => renderClaimItem(c, false, true)).join('') : '<p class="text-gray-500">No claims found in the database.</p>'}
-                    </div>
+                    <p class="text-sm text-gray-500 mb-4 border-l-2 pl-3 border-red-400 bg-red-50 py-2">As **Admin**, you bypass all RLS filters and see all claims in the database. Click any row for details and actions.</p>
+                    ${claims.length > 0 ? tableHtml : '<p class="text-gray-500">No claims found in the database.</p>'}
                 </div>
             `;
         }
@@ -732,7 +753,6 @@
 
             loadingDiv.classList.remove('hidden');
             
-            // Fetches data. RLS policies on the backend handle the filtering.
             const claims = await fetchClaims();
             
             loadingDiv.classList.add('hidden');
@@ -748,12 +768,10 @@
             }
         }
         
-        // NEW: Function to handle payload and update state immediately
         function refreshDashboardFromPayload(newProfileData) {
             const newRole = newProfileData.role;
             const newName = newProfileData.email;
             
-            // Critical: Check if the role has actually changed before continuing
             if (currentUser.role === newRole) {
                 console.log(`Role is already ${newRole}. No change needed from Realtime payload.`);
                 return;
@@ -782,14 +800,11 @@
                 supabaseClient.removeChannel(profileListener);
             }
             
-            // Listen for any updates on the user_profiles table.
             profileListener = supabaseClient
                 .channel('roles_channel')
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'user_profiles' }, async (payload) => {
-                    // Check if the update is for the current logged-in user
                     if (currentUser && payload.new.id === userId) {
                          console.log("User role update detected via real-time payload:", payload.new.role);
-                         // Use the new payload data directly to refresh the UI
                          refreshDashboardFromPayload(payload.new);
                     }
                 })
@@ -803,34 +818,23 @@
             }
         }
 
-        /**
-         * Fetches the user's role from the DB and updates UI (used primarily on initial login).
-         */
         async function updateUI(session) {
             if (session) {
-                // Start listening for role updates immediately upon login
                 startRoleListener(session.user.id);
                 
                 authContainer.classList.add('hidden');
                 contentArea.classList.remove('hidden');
                 authControls.classList.remove('hidden');
                 
-                // Fetch the role and email (name) on initial login
                 const { role, name } = await fetchUserRole(session.user.id);
                 
-                currentUser = { 
-                    id: session.user.id, 
-                    name: name,
-                    role: role 
-                };
+                currentUser = { id: session.user.id, name: name, role: role };
                 
                 userInfo.textContent = `User: ${currentUser.name} (Role: ${currentUser.role})`;
                 
-                // Set the default dashboard to the user's assigned role
                 roleSelect.value = currentUser.role;
                 currentRole = currentUser.role;
                 
-                // Lock the dropdown unless the user is an Admin
                 roleSelect.disabled = (currentUser.role !== 'admin');
                 if (currentUser.role !== 'admin') {
                     roleSelect.title = `Access restricted to ${currentUser.role} view.`;
@@ -841,7 +845,7 @@
                 switchDashboard(currentRole);
 
             } else {
-                stopRoleListener(); // Stop listening on logout
+                stopRoleListener(); 
                 currentUser = null;
                 currentRole = 'field'; 
                 authContainer.classList.remove('hidden');
@@ -858,14 +862,12 @@
         
         signInBtn.addEventListener('click', handleSignIn);
         signUpBtn.addEventListener('click', handleSignUp);
-        logoutBtn.addEventListener('click', handleSignOut); // This is where the event is attached
+        logoutBtn.addEventListener('click', handleSignOut);
 
         roleSelect.addEventListener('change', (e) => {
-            // Only admins can change the view
             if (currentUser && currentUser.role === 'admin') {
                 switchDashboard(e.target.value);
             } else {
-                // If a non-admin somehow bypasses the 'disabled' attribute, reset it
                 e.target.value = currentUser.role;
             }
         });
@@ -881,13 +883,10 @@
                 .channel('claims_channel')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'claims' }, (payload) => {
                     if (currentUser) {
-                         // Only reload if the user is logged in
                          loadDashboard();
                     }
                 })
                 .subscribe();
-            
-            // NOTE: The role listener is now started within updateUI() when a user logs in.
         } 
     </script>
 </body>
