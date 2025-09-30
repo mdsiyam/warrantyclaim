@@ -19,12 +19,17 @@
             font-family: 'Inter', sans-serif; 
             background-color: #1e293b; /* Deep Slate Gray / Indigo background for login screen */
             min-height: 100vh;
+            /* Flex layout to center the login form before it is hidden */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0; /* Remove padding from body */
         } 
         
         /* Utility Classes for Components */
         .status-pill { 
             padding: 4px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; 
-            transition: background-color 0.3s, box-shadow 0.3s;
         }
         .btn-primary { 
             /* Added animation and scale on hover */
@@ -35,20 +40,8 @@
             @apply mt-1 w-full p-3 border border-gray-300 rounded-xl bg-white shadow-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition duration-300; 
         }
         .card-base { 
-            /* Added subtle hover shadow */
+            /* Main card style for dashboards */
             @apply bg-white p-8 rounded-2xl shadow-xl transition duration-300 ease-in-out hover:shadow-2xl hover:border-indigo-100; 
-        }
-        
-        /* Table Interaction */
-        .claim-summary-row {
-            transition: background-color 0.3s, transform 0.3s, box-shadow 0.3s;
-        }
-        .claim-summary-row:hover {
-            background-color: #eef2ff; /* Light indigo hover */
-            /* Subtle lift effect on hover */
-            transform: translateY(-1px);
-            box-shadow: 0 6px 10px -2px rgba(0, 0, 0, 0.1);
-            z-index: 10;
         }
         
         /* NEW LOGIN PAGE STYLES */
@@ -59,21 +52,20 @@
             background: #ffffff;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4); 
             overflow: hidden; 
-            margin-top: -8rem; 
         }
 
         /* Styles for the main content area (dashboard) when logged in */
         #content-area-wrapper {
             max-width: 80rem; 
+            width: 100%;
             margin: 0 auto;
-            padding: 1rem 2rem; /* Restore padding for dashboard */
+            padding: 1rem 2rem; /* Padding for dashboard */
         }
     </style>
 </head>
 
-<body class="flex flex-col justify-center items-center min-h-screen">
-
-    <header class="bg-white shadow-lg p-4 rounded-2xl flex flex-col md:flex-row justify-between items-center sticky top-4 z-10 border-b border-indigo-100 w-full max-w-7xl mx-auto mb-8">
+<body class="min-h-screen"> 
+    <header id="main-header" class="bg-white shadow-lg p-4 rounded-2xl flex flex-col md:flex-row justify-between items-center sticky top-4 z-10 border-b border-indigo-100 w-full max-w-7xl mx-auto mb-8 hidden">
         <h1 class="text-3xl font-extrabold text-indigo-700 mb-4 md:mb-0">WarrantyFlow</h1>
         <div id="auth-controls" class="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-4 hidden">
             <p id="user-info" class="text-sm font-medium text-gray-700"></p>
@@ -92,81 +84,84 @@
         </div>
     </header>
 
-    <div id="app" class="w-full">
+    <div id="auth-container" class="mx-auto rounded-2xl shadow-2xl">
+        <div class="bg-indigo-600 p-8 text-white rounded-t-2xl">
+            <div class="flex items-center space-x-3">
+                <i class="fas fa-tools text-4xl"></i>
+                <h2 class="text-3xl font-extrabold">WarrantyFlow Login</h2>
+            </div>
+            <p class="text-indigo-200 mt-2">Access your claim management dashboard.</p>
+        </div>
         
-        <div id="auth-container" class="mx-auto rounded-2xl shadow-2xl">
-            <div class="bg-indigo-600 p-8 text-white rounded-t-2xl">
-                <div class="flex items-center space-x-3">
-                    <i class="fas fa-tools text-4xl"></i>
-                    <h2 class="text-3xl font-extrabold">WarrantyFlow Login</h2>
+        <div class="p-8 space-y-6">
+             <h3 class="text-2xl font-bold text-gray-800">Sign In / Register</h3>
+             <p class="text-sm text-center text-gray-500">New users get the **Field Team** role by default.</p>
+             <form id="auth-form" class="space-y-6">
+                
+                <div>
+                    <label for="auth-email" class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                    <div class="relative">
+                        <i class="fas fa-envelope absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg"></i>
+                        <input type="email" id="auth-email" required class="input-field pl-12" placeholder="user@example.com">
+                    </div>
                 </div>
-                <p class="text-indigo-200 mt-2">Access your claim management dashboard.</p>
-            </div>
-            
-            <div class="p-8 space-y-6">
-                 <h3 class="text-2xl font-bold text-gray-800">Sign In</h3>
-                 <form id="auth-form" class="space-y-6">
-                    
-                    <div>
-                        <label for="auth-email" class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
-                        <div class="relative">
-                            <i class="fas fa-envelope absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg"></i>
-                            <input type="email" id="auth-email" required class="input-field pl-12" placeholder="user@example.com">
-                        </div>
+                
+                <div>
+                    <label for="auth-password" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                    <div class="relative">
+                        <i class="fas fa-lock absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg"></i>
+                        <input type="password" id="auth-password" required class="input-field pl-12" placeholder="Enter your password">
                     </div>
-                    
-                    <div>
-                        <label for="auth-password" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
-                        <div class="relative">
-                            <i class="fas fa-lock absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg"></i>
-                            <input type="password" id="auth-password" required class="input-field pl-12" placeholder="Enter your password">
-                        </div>
-                    </div>
-                    
-                    <div class="flex space-x-4 pt-4">
-                        <button type="button" id="signin-btn" class="w-full btn-primary py-3 rounded-xl font-bold flex items-center justify-center space-x-2">
-                            <i class="fas fa-sign-in-alt"></i>
-                            <span>Sign In</span>
-                        </button>
-                    </div>
-                </form>
-                <p id="auth-message" class="text-center text-red-500 text-sm hidden"></p>
-            </div>
+                </div>
+                
+                <div class="flex space-x-4 pt-4">
+                    <button type="button" id="signin-btn" class="w-1/2 btn-primary py-3 rounded-xl font-bold flex items-center justify-center space-x-2">
+                        <i class="fas fa-sign-in-alt"></i>
+                        <span>Sign In</span>
+                    </button>
+                    <button type="button" id="signup-btn" class="w-1/2 bg-indigo-500 text-white py-3 rounded-xl font-semibold hover:bg-indigo-600 transition flex items-center justify-center space-x-2">
+                        <i class="fas fa-user-plus"></i>
+                        <span>Register</span>
+                    </button>
+                </div>
+            </form>
+            <p id="auth-message" class="text-center text-red-500 text-sm hidden"></p>
         </div>
+    </div>
 
-        <div id="content-area-wrapper" class="hidden">
-            <div id="loading" class="text-center text-indigo-500 p-8">Loading dashboard...</div>
-            <div id="field-dashboard" class="hidden"></div>
-            <div id="sce-dashboard" class="hidden"></div>
-            <div id="manager-dashboard" class="hidden"></div>
-            <div id="admin-dashboard" class="hidden"></div>
+    <div id="content-area-wrapper" class="hidden">
+        <div id="loading" class="text-center text-indigo-500 p-8">Loading dashboard...</div>
+        <div id="field-dashboard" class="hidden"></div>
+        <div id="sce-dashboard" class="hidden"></div>
+        <div id="manager-dashboard" class="hidden"></div>
+        <div id="admin-dashboard" class="hidden"></div>
+    </div>
+
+    <div id="notification-modal" class="fixed inset-0 bg-gray-900 bg-opacity-70 hidden items-center justify-center p-4 z-40">
+        <div class="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full transform transition-all duration-300 ease-out">
+            <h3 id="modal-title" class="text-2xl font-bold mb-3 text-gray-800">Success!</h3>
+            <p id="modal-message" class="text-gray-600 mb-6"></p>
+            <button onclick="closeModal()" class="w-full btn-primary py-2 rounded-xl font-semibold">
+                <i class="fas fa-times-circle mr-1"></i>Close
+            </button>
         </div>
-
-        <div id="notification-modal" class="fixed inset-0 bg-gray-900 bg-opacity-70 hidden items-center justify-center p-4 z-40">
-            <div class="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full transform transition-all duration-300 ease-out">
-                <h3 id="modal-title" class="text-2xl font-bold mb-3 text-gray-800">Success!</h3>
-                <p id="modal-message" class="text-gray-600 mb-6"></p>
-                <button onclick="closeModal()" class="w-full btn-primary py-2 rounded-xl font-semibold">
-                    <i class="fas fa-times-circle mr-1"></i>Close
+    </div>
+    
+    <div id="confirmation-modal" class="fixed inset-0 bg-gray-900 bg-opacity-70 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full transform transition-all duration-300 ease-out">
+            <h3 id="confirm-title" class="text-2xl font-bold mb-3 text-gray-800">Confirm Action</h3>
+            <p id="confirm-message" class="text-gray-600 mb-6">Are you sure you want to proceed?</p>
+            <div class="flex justify-end space-x-3">
+                <button id="confirm-cancel" class="bg-gray-200 text-gray-700 py-2 px-4 rounded-xl font-semibold hover:bg-gray-300 transition">
+                    <i class="fas fa-ban mr-1"></i>Cancel
+                </button>
+                <button id="confirm-proceed" class="bg-red-600 text-white py-2 px-4 rounded-xl font-semibold hover:bg-red-700 transition">
+                    <i class="fas fa-check-circle mr-1"></i>Proceed
                 </button>
             </div>
         </div>
-        
-        <div id="confirmation-modal" class="fixed inset-0 bg-gray-900 bg-opacity-70 hidden items-center justify-center p-4 z-50">
-            <div class="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full transform transition-all duration-300 ease-out">
-                <h3 id="confirm-title" class="text-2xl font-bold mb-3 text-gray-800">Confirm Action</h3>
-                <p id="confirm-message" class="text-gray-600 mb-6">Are you sure you want to proceed?</p>
-                <div class="flex justify-end space-x-3">
-                    <button id="confirm-cancel" class="bg-gray-200 text-gray-700 py-2 px-4 rounded-xl font-semibold hover:bg-gray-300 transition">
-                        <i class="fas fa-ban mr-1"></i>Cancel
-                    </button>
-                    <button id="confirm-proceed" class="bg-red-600 text-white py-2 px-4 rounded-xl font-semibold hover:bg-red-700 transition">
-                        <i class="fas fa-check-circle mr-1"></i>Proceed
-                    </button>
-                </div>
-            </div>
-        </div>
     </div>
+
 
     <script type="module">
         // 🚨🚨🚨 ACTION REQUIRED: REPLACE THESE PLACEHOLDERS WITH YOUR ACTUAL SUPABASE CREDENTIALS 🚨🚨🚨
@@ -211,8 +206,10 @@
         const contentAreaWrapper = document.getElementById('content-area-wrapper');
         const authControls = document.getElementById('auth-controls');
         const userInfo = document.getElementById('user-info');
+        const mainHeader = document.getElementById('main-header'); // NEW REFERENCE
         
         const signInBtn = document.getElementById('signin-btn');
+        const signUpBtn = document.getElementById('signup-btn');
         const logoutBtn = document.getElementById('logout-btn');
         const authEmail = document.getElementById('auth-email');
         const authPassword = document.getElementById('auth-password');
@@ -328,6 +325,23 @@
             authMessage.classList.remove('hidden');
             authMessage.classList.toggle('text-red-500', isError);
             authMessage.classList.toggle('text-green-500', !isError);
+        }
+
+        async function handleSignUp() {
+             if (!isConfigured) return setAuthMessage("System not configured. Update credentials first.", true);
+            const email = authEmail.value;
+            const password = authPassword.value;
+            if (!email || !password) return setAuthMessage("Please enter email and password.");
+
+            const { data, error } = await supabaseClient.auth.signUp({ email, password });
+
+            if (error) {
+                setAuthMessage(`Sign up error: ${error.message}`);
+            } else if (data.user) {
+                setAuthMessage("Registration successful! Please check your email for confirmation.", false);
+            } else {
+                setAuthMessage("Check your email to confirm registration before signing in.", false);
+            }
         }
 
         async function handleSignIn() {
@@ -494,17 +508,15 @@
             );
         }
 
-
         // --- Dashboard Rendering ---
 
         function renderClaimItem(claim, showActions = false, isAdminView = false) {
             const statusClass = getStatusColor(claim.status);
-
-            let actionsHtml = '';
-            
             const isPendingSCE = claim.status === 'Submitted' && currentRole === 'sce';
             const isPendingManager = claim.status === 'SCE_Approved' && currentRole === 'manager';
-            const showApprovalButtons = showActions && currentApprovalTab === 'pending' && currentUser.role === currentRole && (isPendingSCE || isPendingManager);
+            const showApprovalButtons = showActions && (isPendingSCE || isPendingManager);
+            
+            let actionsHtml = '';
             
             if (showApprovalButtons) { 
                 actionsHtml = `
@@ -568,284 +580,141 @@
                 </div>
             `;
         }
-        
-        function renderClaimTable(claims, showActions = false, isAdminView = false) {
-            if (claims.length === 0) {
-                return '<p class="text-gray-600 p-6 bg-white rounded-xl shadow-lg border border-gray-200">No claims found for this view.</p>';
-            }
-
-            const tableRows = claims.map(claim => {
-                const detailsId = `details-${claim.id}`;
-                
-                const summaryRow = `
-                    <tr data-claim-id="${claim.id}" class="claim-summary-row hover:bg-indigo-50 transition duration-150 ease-in-out cursor-pointer border-b border-gray-100">
-                        <td class="px-6 py-4 font-mono text-sm text-gray-900">${claim.id.substring(0, 8)}</td>
-                        <td class="px-6 py-4 text-sm font-medium text-gray-700">${claim.customer_name || 'N/A'}</td>
-                        <td class="px-6 py-4">
-                            <span class="status-pill ${getStatusColor(claim.status)}">${claim.status.replace('_', ' ')}</span>
-                        </td>
-                        <td class="px-6 py-4 text-sm font-medium text-indigo-600">
-                            <i class="fas fa-chevron-right w-4 h-4 inline-block transform transition-transform"></i>
-                        </td>
-                    </tr>
-                `;
-                
-                const detailsRow = `
-                    <tr id="${detailsId}" class="claim-details-row hidden"> 
-                        <td colspan="4" class="p-0 border-none">
-                            <div class="p-6 bg-gray-50 border-t border-indigo-200 w-full">
-                                ${renderClaimItem(claim, showActions, isAdminView)}
-                            </div>
-                        </td>
-                    </tr>
-                `;
-                
-                return summaryRow + detailsRow;
-            }).join('');
-
-            return `
-                <div class="overflow-hidden shadow-2xl rounded-2xl border border-gray-200">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-800">
-                            <tr>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Claim ID</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Customer Name</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Status</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Details</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-100">
-                            ${tableRows}
-                        </tbody>
-                    </table>
-                </div>
-            `;
-        }
-
-        window.switchFieldTab = function(tabName) {
-            const historyTab = document.getElementById('claim-history-tab');
-            const newClaimTab = document.getElementById('new-claim-tab');
-            const historyContent = document.getElementById('claim-history-content');
-            const newClaimContent = document.getElementById('new-claim-content');
-
-            const activeClasses = ['border-indigo-600', 'text-indigo-700', 'font-bold'];
-            const inactiveClasses = ['border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300'];
-
-            if (tabName === 'history') {
-                historyTab.classList.add(...activeClasses);
-                historyTab.classList.remove(...inactiveClasses);
-                newClaimTab.classList.remove(...activeClasses);
-                newClaimTab.classList.add(...inactiveClasses);
-                historyContent.classList.remove('hidden');
-                newClaimContent.classList.add('hidden');
-            } else {
-                newClaimTab.classList.add(...activeClasses);
-                newClaimTab.classList.remove(...inactiveClasses);
-                historyTab.classList.remove(...activeClasses);
-                historyTab.classList.add(...inactiveClasses);
-                newClaimContent.classList.remove('hidden');
-                historyContent.classList.add('hidden');
-            }
-        }
-        
-        window.switchApprovalTab = function(role, tabName) {
-            currentApprovalTab = tabName;
-            
-            const dashboardId = role + '-dashboard';
-            const activeClasses = ['border-indigo-600', 'text-indigo-700', 'font-bold'];
-            const inactiveClasses = ['border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300'];
-            
-            // Update Tab Headers
-            document.querySelectorAll(`#${dashboardId} nav button`).forEach(btn => {
-                const btnTabName = btn.getAttribute('data-tab-name');
-                if (btnTabName === tabName) {
-                    btn.classList.add(...activeClasses);
-                    btn.classList.remove(...inactiveClasses);
-                } else {
-                    btn.classList.remove(...activeClasses);
-                    btn.classList.add(...inactiveClasses);
-                }
-            });
-
-            // Update Tab Content
-            document.querySelectorAll(`#${dashboardId} .tab-content`).forEach(content => {
-                if (content.id === `${role}-${tabName}-content`) {
-                    content.classList.remove('hidden');
-                } else {
-                    content.classList.add('hidden');
-                }
-            });
-        }
 
         function renderFieldDashboard(claims) {
-            const claimHistoryTable = renderClaimTable(claims, false, false);
-            
             fieldDashboard.innerHTML = `
-                <div class="card-base">
-                    <h2 class="text-3xl font-extrabold text-indigo-700 mb-6 border-b pb-3">Field Team Dashboard</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 p-4">
+                    <div class="lg:col-span-1 bg-white p-6 border border-indigo-100 rounded-2xl shadow-lg h-fit">
+                        <h2 class="text-2xl font-bold text-indigo-700 mb-4">New Warranty Claim</h2>
+                        <form id="new-claim-form" class="space-y-4">
+                            <h3 class="text-lg font-semibold text-gray-700 border-b pb-1 mb-2">Customer & Machine</h3>
+                            <div>
+                                <label for="customer-name" class="block text-sm font-medium text-gray-700">Customer Name</label>
+                                <input type="text" id="customer-name" required class="input-field">
+                            </div>
+                            <div>
+                                <label for="machine-model" class="block text-sm font-medium text-gray-700">Machine Model</label>
+                                <input type="text" id="machine-model" required class="input-field">
+                            </div>
+                            <div>
+                                <label for="claim-serial" class="block text-sm font-medium text-gray-700">Serial Number</label>
+                                <input type="text" id="claim-serial" required class="input-field">
+                            </div>
+                            <div>
+                                <label for="running-hour" class="block text-sm font-medium text-gray-700">Running Hours (Approx)</label>
+                                <input type="number" id="running-hour" class="input-field" step="1" min="0" placeholder="e.g., 5000">
+                            </div>
 
-                    <div class="border-b border-gray-200 mb-6">
-                        <nav class="-mb-px flex space-x-10" aria-label="Tabs">
-                            <button id="new-claim-tab" onclick="switchFieldTab('new')"
-                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-base border-indigo-600 text-indigo-700 font-bold transition">
-                                <i class="fas fa-plus-circle mr-2"></i>New Claim Submission
+                            <h3 class="text-lg font-semibold text-gray-700 border-b pb-1 mb-2 pt-2">Failure Information</h3>
+                            <div>
+                                <label for="failure-date" class="block text-sm font-medium text-gray-700">Failure Date</label>
+                                <input type="date" id="failure-date" required class="input-field">
+                            </div>
+                            <div>
+                                <label for="failure-component" class="block text-sm font-medium text-gray-700">Failure Component</label>
+                                <input type="text" id="failure-component" required class="input-field" placeholder="e.g., Hydraulic Pump, Engine Belt">
+                            </div>
+                            <div>
+                                <label for="failure-part-no" class="block text-sm font-medium text-gray-700">Part No. of Failure Component</label>
+                                <input type="text" id="failure-part-no" class="input-field" placeholder="Optional">
+                            </div>
+                            
+                            <h3 class="text-lg font-semibold text-gray-700 border-b pb-1 mb-2 pt-2">Problem Description</h3>
+                            <div>
+                                <label for="claim-title" class="block text-sm font-medium text-gray-700">Claim Summary / Problem</label>
+                                <input type="text" id="claim-title" required class="input-field" placeholder="Short summary of the issue">
+                            </div>
+                            <div>
+                                <label for="claim-description" class="block text-sm font-medium text-gray-700">Detailed Description of Fault</label>
+                                <textarea id="claim-description" rows="4" required class="input-field"></textarea>
+                            </div>
+
+                            <button type="submit" class="w-full btn-primary py-3 rounded-xl font-bold flex items-center justify-center space-x-2">
+                                <i class="fas fa-paper-plane"></i>
+                                <span>Submit Claim</span>
                             </button>
-                            <button id="claim-history-tab" onclick="switchFieldTab('history')"
-                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-base border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 transition">
-                                <i class="fas fa-history mr-2"></i>Claim History (${claims.length})
-                            </button>
-                        </nav>
+                        </form>
                     </div>
 
-                    <div id="new-claim-content" class="">
-                        <div class="max-w-xl mx-auto bg-gray-50 p-8 border border-indigo-200 rounded-2xl shadow-lg h-fit">
-                            <h3 class="text-2xl font-bold text-indigo-700 mb-6">Submit New Claim</h3>
-                            <form id="new-claim-form" class="space-y-5">
-                                <h4 class="text-lg font-semibold text-gray-700 border-b pb-1 mb-3 pt-2">Customer & Machine</h4>
-                                <div>
-                                    <label for="customer-name" class="block text-sm font-medium text-gray-700">Customer Name</label>
-                                    <input type="text" id="customer-name" required class="input-field">
-                                </div>
-                                <div>
-                                    <label for="machine-model" class="block text-sm font-medium text-gray-700">Machine Model</label>
-                                    <input type="text" id="machine-model" required class="input-field">
-                                </div>
-                                <div>
-                                    <label for="claim-serial" class="block text-sm font-medium text-gray-700">Serial Number</label>
-                                    <input type="text" id="claim-serial" required class="input-field">
-                                </div>
-                                <div>
-                                    <label for="running-hour" class="block text-sm font-medium text-gray-700">Running Hours (Approx)</label>
-                                    <input type="number" id="running-hour" class="input-field" step="1" min="0" placeholder="e.g., 5000">
-                                </div>
-
-                                <h4 class="text-lg font-semibold text-gray-700 border-b pb-1 mb-3 pt-2">Failure Information</h4>
-                                <div>
-                                    <label for="failure-date" class="block text-sm font-medium text-gray-700">Failure Date</label>
-                                    <input type="date" id="failure-date" required class="input-field">
-                                </div>
-                                <div>
-                                    <label for="failure-component" class="block text-sm font-medium text-gray-700">Failure Component</label>
-                                    <input type="text" id="failure-component" required class="input-field" placeholder="e.g., Hydraulic Pump, Engine Belt">
-                                </div>
-                                <div>
-                                    <label for="failure-part-no" class="block text-sm font-medium text-gray-700">Part No. of Failure Component</label>
-                                    <input type="text" id="failure-part-no" class="input-field" placeholder="Optional">
-                                </div>
-                                
-                                <h4 class="text-lg font-semibold text-gray-700 border-b pb-1 mb-3 pt-2">Problem Description</h4>
-                                <div>
-                                    <label for="claim-title" class="block text-sm font-medium text-gray-700">Claim Summary / Problem</label>
-                                    <input type="text" id="claim-title" required class="input-field" placeholder="Short summary of the issue">
-                                </div>
-                                <div>
-                                    <label for="claim-description" class="block text-sm font-medium text-gray-700">Detailed Description of Fault</label>
-                                    <textarea id="claim-description" rows="4" required class="input-field"></textarea>
-                                </div>
-
-                                <button type="submit" class="w-full btn-primary py-3 rounded-xl font-bold flex items-center justify-center space-x-2">
-                                    <i class="fas fa-paper-plane"></i>
-                                    <span>Submit Claim</span>
-                                </button>
-                            </form>
+                    <div class="lg:col-span-2 p-4">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4">My Submitted Claims (${claims.length})</h2>
+                        <p class="text-sm text-gray-500 mb-4 border-l-2 pl-3 border-indigo-400 bg-indigo-50 py-2">Data displayed here is filtered by the backend security policies. You only see claims you raised.</p>
+                        <div class="space-y-4">
+                            ${claims.length > 0 ? claims.map(c => renderClaimItem(c)).join('') : '<p class="text-gray-500 p-4 bg-white rounded-lg shadow-sm">No claims submitted yet.</p>'}
                         </div>
-                    </div>
-
-                    <div id="claim-history-content" class="hidden">
-                        <p class="text-sm text-gray-700 mb-6 border-l-4 pl-3 border-indigo-400 bg-indigo-50 py-3 px-3 rounded-lg">Data displayed here is filtered by the backend security policies. You only see claims you raised.</p>
-                        ${claimHistoryTable}
                     </div>
                 </div>
             `;
-            
             document.getElementById('new-claim-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 
+                // New Fields
                 const customerName = document.getElementById('customer-name').value;
                 const machineModel = document.getElementById('machine-model').value;
                 const runningHour = document.getElementById('running-hour').value;
                 const failureDate = document.getElementById('failure-date').value;
                 const failureComponent = document.getElementById('failure-component').value;
                 const failurePartNo = document.getElementById('failure-part-no').value;
+
+                // Existing Fields
                 const title = document.getElementById('claim-title').value;
                 const serial = document.getElementById('claim-serial').value;
                 const description = document.getElementById('claim-description').value;
 
                 const claimPayload = { 
-                    title: title, equipment_serial: serial, description: description,
-                    customer_name: customerName, machine_model: machineModel,
+                    title: title, 
+                    equipment_serial: serial, 
+                    description: description,
+                    customer_name: customerName,
+                    machine_model: machineModel,
                     running_hour: runningHour ? parseFloat(runningHour) : null,
-                    failure_date: failureDate, failure_component: failureComponent,
+                    failure_date: failureDate,
+                    failure_component: failureComponent,
                     failure_part_no: failurePartNo
                 };
 
                 await submitClaim(claimPayload);
                 e.target.reset();
-                switchFieldTab('history');
             });
         }
-        
-        function renderApprovalDashboard(claimsByStatus, title, targetDiv, roleId) { 
-            const pendingClaims = claimsByStatus.pending;
-            const approvedClaims = claimsByStatus.approved;
-            
-            const pendingTable = renderClaimTable(pendingClaims, true); 
-            const approvedTable = renderClaimTable(approvedClaims, false); 
 
+        function renderApprovalDashboard(claims, title, targetDiv) {
             targetDiv.innerHTML = `
-                <div id="${roleId}-dashboard-content" class="card-base">
-                    <h2 class="text-3xl font-extrabold text-indigo-700 mb-6 border-b pb-3">${title}</h2>
-
-                    <div class="border-b border-gray-200 mb-6">
-                        <nav class="-mb-px flex space-x-10" aria-label="Tabs">
-                            <button data-tab-name="pending" onclick="switchApprovalTab('${roleId}', 'pending')"
-                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-base transition">
-                                <i class="fas fa-clock mr-2"></i>Claims Pending Approval (${pendingClaims.length})
-                            </button>
-                            <button data-tab-name="approved" onclick="switchApprovalTab('${roleId}', 'approved')"
-                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-base border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 transition">
-                                <i class="fas fa-check-double mr-2"></i>History (Approved/Rejected) (${approvedClaims.length})
-                            </button>
-                        </nav>
-                    </div>
-
-                    <p class="text-sm text-gray-700 mb-6 border-l-4 pl-3 border-indigo-400 bg-indigo-50 py-3 px-3 rounded-lg">Click any row to view full details and take action where applicable.</p>
-
-                    <div id="${roleId}-pending-content" class="tab-content">
-                        ${pendingClaims.length > 0 ? pendingTable : '<p class="text-gray-600">No claims currently pending your approval.</p>'}
-                    </div>
-
-                    <div id="${roleId}-approved-content" class="tab-content hidden">
-                        ${approvedClaims.length > 0 ? approvedTable : '<p class="text-gray-600">No claims have been approved or rejected yet.</p>'}
+                <div class="bg-white p-6 border border-gray-100 rounded-xl shadow-lg m-4">
+                    <h2 class="text-3xl font-bold text-indigo-700 mb-6">${title} (${claims.length})</h2>
+                    <p class="text-sm text-gray-500 mb-4 border-l-2 pl-3 border-indigo-400 bg-indigo-50 py-2">Data displayed here is filtered by the backend security policies. You only see claims ready for your specific approval stage.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        ${claims.length > 0 ? claims.map(c => renderClaimItem(c, true)).join('') : '<p class="text-gray-500">No claims currently pending approval.</p>'}
                     </div>
                 </div>
             `;
-            
-            window.switchApprovalTab(roleId, 'pending');
         }
         
         function renderAdminDashboard(claims) {
-            const tableHtml = renderClaimTable(claims, false, true);
             adminDashboard.innerHTML = `
-                <div class="card-base">
-                    <h2 class="text-3xl font-extrabold text-red-700 mb-6 border-b pb-3">Admin Master View (All Claims: ${claims.length})</h2>
-                    <p class="text-sm text-gray-700 mb-6 border-l-4 pl-3 border-red-400 bg-red-50 py-3 px-3 rounded-lg">As **Admin**, you bypass all RLS filters and see all claims in the database. Click any row for details and actions.</p>
-                    ${claims.length > 0 ? tableHtml : '<p class="text-gray-600">No claims found in the database.</p>'}
+                <div class="bg-white p-6 border border-gray-100 rounded-xl shadow-lg m-4">
+                    <h2 class="text-3xl font-bold text-red-700 mb-6">Admin Master View (All Claims: ${claims.length})</h2>
+                    <p class="text-sm text-gray-500 mb-4 border-l-2 pl-3 border-red-400 bg-red-50 py-2">As **Admin**, you bypass all RLS filters and see all claims in the database. Use this view for auditing and manual state control.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        ${claims.length > 0 ? claims.map(c => renderClaimItem(c, false, true)).join('') : '<p class="text-gray-500">No claims found in the database.</p>'}
+                    </div>
                 </div>
             `;
         }
+
 
         // --- Main Controller ---
 
         function switchDashboard(role) {
+            // Hide all
             fieldDashboard.classList.add('hidden');
             sceDashboard.classList.add('hidden');
             managerDashboard.classList.add('hidden');
             adminDashboard.classList.add('hidden');
 
             currentRole = role;
-            currentApprovalTab = 'pending';
 
+            // Show current one
             if (role === 'field') {
                 fieldDashboard.classList.remove('hidden');
             } else if (role === 'sce') {
@@ -871,18 +740,13 @@
             if (currentRole === 'field') {
                 renderFieldDashboard(claims);
             } else if (currentRole === 'sce') {
+                // SCE sees 'Submitted' claims
                 const pendingClaims = claims.filter(c => c.status === 'Submitted');
-                const approvedClaims = claims.filter(c => 
-                    c.status === 'SCE_Approved' || 
-                    c.status === 'SCE_Rejected' ||
-                    c.status === 'Manager_Approved' || 
-                    c.status === 'Manager_Rejected'
-                );
-                renderApprovalDashboard({ pending: pendingClaims, approved: approvedClaims }, 'SCE Approval Dashboard', sceDashboard, 'sce');
+                renderApprovalDashboard(pendingClaims, 'Claims Pending SCE Approval', sceDashboard);
             } else if (currentRole === 'manager') {
+                // Manager sees 'SCE_Approved' claims
                 const pendingClaims = claims.filter(c => c.status === 'SCE_Approved');
-                const approvedClaims = claims.filter(c => c.status === 'Manager_Approved' || c.status === 'Manager_Rejected');
-                renderApprovalDashboard({ pending: pendingClaims, approved: approvedClaims }, 'Manager Approval Dashboard', managerDashboard, 'manager');
+                renderApprovalDashboard(pendingClaims, 'Claims Pending Manager Approval', managerDashboard);
             } else if (currentRole === 'admin') {
                 renderAdminDashboard(claims);
             }
@@ -941,9 +805,11 @@
                 authContainer.classList.add('hidden');
                 contentAreaWrapper.classList.remove('hidden');
                 authControls.classList.remove('hidden');
-                
-                // Set body background to dashboard color
-                document.body.style.backgroundColor = '#f3f4f6'; 
+                mainHeader.classList.remove('hidden'); // SHOW HEADER
+
+                // Set body style for dashboard view
+                document.body.classList.remove('justify-center', 'items-center');
+                document.body.style.backgroundColor = '#f3f4f6'; // Dashboard background
 
                 const { role, name } = await fetchUserRole(session.user.id);
                 
@@ -968,12 +834,15 @@
                 stopRoleListener(); 
                 currentUser = null;
                 currentRole = 'field'; 
+                
                 authContainer.classList.remove('hidden');
                 contentAreaWrapper.classList.add('hidden');
                 authControls.classList.add('hidden');
-                
-                // Set body background to login color
-                document.body.style.backgroundColor = '#1e293b'; 
+                mainHeader.classList.add('hidden'); // HIDE HEADER
+
+                // Set body style for login view
+                document.body.classList.add('justify-center', 'items-center');
+                document.body.style.backgroundColor = '#1e293b'; // Login background
 
                 authMessage.classList.add('hidden');
                 authEmail.value = '';
@@ -981,30 +850,10 @@
             }
         }
 
-        // --- Event Delegation for Table Row Click ---
-        document.addEventListener('click', function(e) {
-            let targetRow = e.target.closest('.claim-summary-row');
-            
-            if (targetRow) {
-                const detailsRow = targetRow.nextElementSibling;
-                // Font Awesome icon selector
-                const icon = targetRow.querySelector('.fa-chevron-right'); 
-
-                if (detailsRow && detailsRow.tagName === 'TR') {
-                    if (detailsRow.classList.contains('hidden')) {
-                        detailsRow.classList.remove('hidden');
-                        if (icon) icon.classList.add('rotate-90');
-                    } else {
-                        detailsRow.classList.add('hidden');
-                        if (icon) icon.classList.remove('rotate-90');
-                    }
-                }
-            }
-        });
-        
         // --- Initialization ---
         
         signInBtn.addEventListener('click', handleSignIn);
+        signUpBtn.addEventListener('click', handleSignUp);
         logoutBtn.addEventListener('click', handleSignOut);
 
         roleSelect.addEventListener('change', (e) => {
