@@ -115,6 +115,7 @@
         let currentRole = 'field'; 
         let currentUser = null; 
         let profileListener = null; 
+        let currentApprovalTab = 'pending'; // NEW: Track the active tab for SCE/Manager
 
         // --- DOM Elements ---
         const roleSelect = document.getElementById('role-select');
@@ -129,7 +130,6 @@
         const userInfo = document.getElementById('user-info');
         
         const signInBtn = document.getElementById('signin-btn');
-        // const signUpBtn = document.getElementById('signup-btn'); // REMOVED
         const logoutBtn = document.getElementById('logout-btn');
         const authEmail = document.getElementById('auth-email');
         const authPassword = document.getElementById('auth-password');
@@ -412,6 +412,7 @@
         }
         
         window.handleApprovalClick = function(claimId, action) {
+            // Only show the notes field for the currently visible tab
             const notesElement = document.getElementById(`notes-${claimId}`);
             const notes = notesElement ? notesElement.value : '';
             
@@ -438,7 +439,8 @@
             // LOGIC TO DETERMINE IF APPROVAL BUTTONS SHOULD SHOW
             const isPendingSCE = claim.status === 'Submitted' && currentRole === 'sce';
             const isPendingManager = claim.status === 'SCE_Approved' && currentRole === 'manager';
-            const showApprovalButtons = showActions && currentUser.role === currentRole && (isPendingSCE || isPendingManager);
+            // Only show actions if the user is on the 'pending' tab
+            const showApprovalButtons = showActions && currentApprovalTab === 'pending' && currentUser.role === currentRole && (isPendingSCE || isPendingManager);
             
             if (showApprovalButtons) { 
                 actionsHtml = `
@@ -551,7 +553,7 @@
         }
 
         /**
-         * New function for Field Dashboard tab switching.
+         * Function for Field Dashboard tab switching.
          */
         window.switchFieldTab = function(tabName) {
             const historyTab = document.getElementById('claim-history-tab');
@@ -574,6 +576,36 @@
                 newClaimContent.classList.remove('hidden');
                 historyContent.classList.add('hidden');
             }
+        }
+        
+        /**
+         * NEW: Function for Approval Dashboard tab switching (SCE and Manager).
+         */
+        window.switchApprovalTab = function(role, tabName) {
+            currentApprovalTab = tabName;
+            
+            const dashboardId = role + '-dashboard';
+            
+            // Update Tab Headers
+            document.querySelectorAll(`#${dashboardId} nav button`).forEach(btn => {
+                const btnTabName = btn.getAttribute('data-tab-name');
+                if (btnTabName === tabName) {
+                    btn.classList.add('border-indigo-500', 'text-indigo-600');
+                    btn.classList.remove('border-transparent', 'text-gray-500');
+                } else {
+                    btn.classList.remove('border-indigo-500', 'text-indigo-600');
+                    btn.classList.add('border-transparent', 'text-gray-500');
+                }
+            });
+
+            // Update Tab Content
+            document.querySelectorAll(`#${dashboardId} .tab-content`).forEach(content => {
+                if (content.id === `${role}-${tabName}-content`) {
+                    content.classList.remove('hidden');
+                } else {
+                    content.classList.add('hidden');
+                }
+            });
         }
 
         function renderFieldDashboard(claims) {
@@ -683,16 +715,49 @@
             });
         }
         
-        // MODIFIED: Simplified to use the common table rendering logic
-        function renderApprovalDashboard(claims, title, targetDiv) {
-            const tableHtml = renderClaimTable(claims, true); // true = show approval actions
+        /**
+         * MODIFIED: Renders the SCE/Manager approval dashboards with two tabs.
+         */
+        function renderApprovalDashboard(claimsByStatus, title, targetDiv, roleId) { 
+            const pendingClaims = claimsByStatus.pending;
+            const approvedClaims = claimsByStatus.approved;
+            
+            // Pending tab needs to show approval actions (showActions = true)
+            const pendingTable = renderClaimTable(pendingClaims, true); 
+            // Approved tab does not need approval actions (showActions = false)
+            const approvedTable = renderClaimTable(approvedClaims, false); 
+
             targetDiv.innerHTML = `
-                <div class="bg-white p-6 border border-gray-100 rounded-xl shadow-lg">
-                    <h2 class="text-3xl font-bold text-indigo-700 mb-6">${title} (${claims.length})</h2>
-                    <p class="text-sm text-gray-500 mb-4 border-l-2 pl-3 border-indigo-400 bg-indigo-50 py-2">Data is presented in a table. Click any row to view full details and perform approval actions.</p>
-                    ${claims.length > 0 ? tableHtml : '<p class="text-gray-500">No claims currently pending approval.</p>'}
+                <div id="${roleId}-dashboard-content" class="bg-white p-6 border border-gray-100 rounded-xl shadow-lg">
+                    <h2 class="text-3xl font-bold text-indigo-700 mb-6">${title}</h2>
+
+                    <div class="border-b border-gray-200 mb-6">
+                        <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                            <button data-tab-name="pending" onclick="switchApprovalTab('${roleId}', 'pending')"
+                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                                Claims Pending Approval (${pendingClaims.length})
+                            </button>
+                            <button data-tab-name="approved" onclick="switchApprovalTab('${roleId}', 'approved')"
+                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                                History (Approved/Rejected) (${approvedClaims.length})
+                            </button>
+                        </nav>
+                    </div>
+
+                    <p class="text-sm text-gray-500 mb-4 border-l-2 pl-3 border-indigo-400 bg-indigo-50 py-2">Click any row to view full details and take action where applicable.</p>
+
+                    <div id="${roleId}-pending-content" class="tab-content">
+                        ${pendingClaims.length > 0 ? pendingTable : '<p class="text-gray-500">No claims currently pending your approval.</p>'}
+                    </div>
+
+                    <div id="${roleId}-approved-content" class="tab-content hidden">
+                        ${approvedClaims.length > 0 ? approvedTable : '<p class="text-gray-500">No claims have been approved or rejected yet.</p>'}
+                    </div>
                 </div>
             `;
+            
+            // Set initial tab state to 'pending'
+            window.switchApprovalTab(roleId, 'pending');
         }
         
         // MODIFIED: Switched from card grid to expandable table
@@ -717,6 +782,7 @@
             adminDashboard.classList.add('hidden');
 
             currentRole = role;
+            currentApprovalTab = 'pending'; // Reset approval tab state on role switch
 
             // Show current one
             if (role === 'field') {
@@ -745,9 +811,15 @@
             if (currentRole === 'field') {
                 renderFieldDashboard(claims);
             } else if (currentRole === 'sce') {
-                renderApprovalDashboard(claims, 'Claims Pending SCE Approval', sceDashboard);
+                // NEW Filtering Logic for SCE
+                const pendingClaims = claims.filter(c => c.status === 'Submitted');
+                const approvedClaims = claims.filter(c => c.status === 'SCE_Approved' || c.status === 'SCE_Rejected');
+                renderApprovalDashboard({ pending: pendingClaims, approved: approvedClaims }, 'SCE Approval Dashboard', sceDashboard, 'sce');
             } else if (currentRole === 'manager') {
-                renderApprovalDashboard(claims, 'Claims Pending Manager Approval', managerDashboard);
+                // NEW Filtering Logic for Manager
+                const pendingClaims = claims.filter(c => c.status === 'SCE_Approved');
+                const approvedClaims = claims.filter(c => c.status === 'Manager_Approved' || c.status === 'Manager_Rejected');
+                renderApprovalDashboard({ pending: pendingClaims, approved: approvedClaims }, 'Manager Approval Dashboard', managerDashboard, 'manager');
             } else if (currentRole === 'admin') {
                 renderAdminDashboard(claims);
             }
@@ -870,7 +942,6 @@
         // --- Initialization ---
         
         signInBtn.addEventListener('click', handleSignIn);
-        // signUpBtn.addEventListener('click', handleSignUp); // REMOVED
         logoutBtn.addEventListener('click', handleSignOut);
 
         roleSelect.addEventListener('change', (e) => {
