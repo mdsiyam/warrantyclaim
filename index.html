@@ -302,11 +302,13 @@
 
         /**
          * Fetches claims based on the current user's *authenticated* session.
+         * The results are automatically filtered by Supabase Row Level Security (RLS).
          */
         async function fetchClaims() {
             if (!currentUser || !isConfigured) return []; 
-
-            // The query relies entirely on Supabase RLS to filter what is returned
+            
+            // The query relies entirely on Supabase RLS to filter what is returned.
+            // RLS MUST be configured to enforce that 'field' users only see their own claims.
             let query = supabaseClient.from('claims').select('*').order('date_raised', { ascending: false });
             
             const { data, error } = await query;
