@@ -5,33 +5,53 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Warranty Approval System</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLMDJc5n/i3T8S59hWvD27s51F4wW22s8N+7o+K60C6u3e54l36R4l9z6B4f40f353B" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <style>
+        /* CSS for a separate file/block (as requested) */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
         
         /* General Look and Feel */
         body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; } 
         
         /* Utility Classes for Components */
-        .status-pill { padding: 4px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+        .status-pill { 
+            padding: 4px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; 
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
         .btn-primary { 
-            @apply bg-indigo-600 text-white font-semibold py-2 px-4 rounded-xl shadow-md hover:bg-indigo-700 transition duration-300 ease-in-out; 
+            /* Added animation and scale on hover */
+            @apply bg-indigo-600 text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:bg-indigo-700 hover:shadow-2xl transition duration-300 ease-in-out transform hover:scale-[1.01]; 
         }
         .input-field { 
-            /* Larger padding, softer shadow, better focus ring */
-            @apply mt-1 w-full p-3 border border-gray-300 rounded-xl bg-white shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition duration-150; 
+            /* Added smooth focus transition and padding for icons */
+            @apply mt-1 w-full p-3 border border-gray-300 rounded-xl bg-white shadow-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition duration-300; 
         }
         .card-base { 
-            /* Standard card style for dashboards */
-            @apply bg-white p-6 border border-gray-100 rounded-2xl shadow-xl; 
+            /* Added subtle hover shadow */
+            @apply bg-white p-8 rounded-2xl shadow-xl transition duration-300 ease-in-out hover:shadow-2xl hover:border-indigo-100; 
         }
         
         /* Table Interaction */
         .claim-summary-row {
-            transition: background-color 0.2s;
+            transition: background-color 0.3s, transform 0.3s, box-shadow 0.3s;
         }
         .claim-summary-row:hover {
             background-color: #eef2ff; /* Light indigo hover */
+            /* Subtle lift effect on hover */
+            transform: translateY(-1px);
+            box-shadow: 0 6px 10px -2px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+        }
+        /* Style for the sign-in container (Fixing box length/visual appeal) */
+        #auth-container {
+             /* Increased width, padding, and added a subtle background */
+            max-width: 38rem; 
+            padding: 3rem; 
+            background: linear-gradient(135deg, #ffffff 0%, #f9f9ff 100%);
         }
     </style>
 </head>
@@ -45,31 +65,45 @@
                 <p id="user-info" class="text-sm font-medium text-gray-700"></p>
                 <div class="flex items-center space-x-2">
                     <label for="role-select" class="font-medium text-gray-700 whitespace-nowrap">View as:</label>
-                    <select id="role-select" class="p-2 border border-gray-300 rounded-xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    <select id="role-select" class="p-2 border border-gray-300 rounded-xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition">
                         <option value="field">Field Team</option>
                         <option value="sce">SCE</option>
                         <option value="manager">Manager</option>
                         <option value="admin">Admin</option>
                     </select>
                 </div>
-                <button id="logout-btn" class="bg-red-600 text-white py-2 px-4 rounded-xl font-semibold hover:bg-red-700 transition">Logout</button>
+                <button id="logout-btn" class="bg-red-600 text-white py-2 px-4 rounded-xl font-semibold hover:bg-red-700 transition duration-300 hover:scale-[1.05]">
+                    <i class="fas fa-sign-out-alt mr-1"></i>Logout
+                </button>
             </div>
         </header>
 
-        <div id="auth-container" class="max-w-md mx-auto bg-white p-10 rounded-2xl shadow-2xl space-y-8">
+        <div id="auth-container" class="mx-auto rounded-2xl shadow-2xl space-y-8">
             <h2 class="text-4xl font-extrabold text-center text-indigo-700">Welcome Back</h2>
             <form id="auth-form" class="space-y-6">
                 <p class="text-sm text-center text-gray-500">Sign in to access your dashboard.</p>
+                
                 <div>
-                    <label for="auth-email" class="block text-sm font-medium text-gray-700">Email</label>
-                    <input type="email" id="auth-email" required class="input-field">
+                    <label for="auth-email" class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                    <div class="relative">
+                        <i class="fas fa-envelope absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg"></i>
+                        <input type="email" id="auth-email" required class="input-field pl-12" placeholder="user@example.com">
+                    </div>
                 </div>
+                
                 <div>
-                    <label for="auth-password" class="block text-sm font-medium text-gray-700">Password</label>
-                    <input type="password" id="auth-password" required class="input-field">
+                    <label for="auth-password" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                    <div class="relative">
+                        <i class="fas fa-lock absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg"></i>
+                        <input type="password" id="auth-password" required class="input-field pl-12" placeholder="Enter your password">
+                    </div>
                 </div>
-                <div class="flex space-x-4">
-                    <button type="button" id="signin-btn" class="w-full btn-primary py-3 rounded-xl font-bold">Sign In</button>
+                
+                <div class="flex space-x-4 pt-4">
+                    <button type="button" id="signin-btn" class="w-full btn-primary py-3 rounded-xl font-bold flex items-center justify-center space-x-2">
+                        <i class="fas fa-sign-in-alt"></i>
+                        <span>Sign In</span>
+                    </button>
                 </div>
             </form>
             <p id="auth-message" class="text-center text-red-500 text-sm hidden"></p>
@@ -87,7 +121,9 @@
             <div class="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full transform transition-all duration-300 ease-out">
                 <h3 id="modal-title" class="text-2xl font-bold mb-3 text-gray-800">Success!</h3>
                 <p id="modal-message" class="text-gray-600 mb-6"></p>
-                <button onclick="closeModal()" class="w-full btn-primary py-2 rounded-xl font-semibold">Close</button>
+                <button onclick="closeModal()" class="w-full btn-primary py-2 rounded-xl font-semibold">
+                    <i class="fas fa-times-circle mr-1"></i>Close
+                </button>
             </div>
         </div>
         
@@ -96,8 +132,12 @@
                 <h3 id="confirm-title" class="text-2xl font-bold mb-3 text-gray-800">Confirm Action</h3>
                 <p id="confirm-message" class="text-gray-600 mb-6">Are you sure you want to proceed?</p>
                 <div class="flex justify-end space-x-3">
-                    <button id="confirm-cancel" class="bg-gray-200 text-gray-700 py-2 px-4 rounded-xl font-semibold hover:bg-gray-300 transition">Cancel</button>
-                    <button id="confirm-proceed" class="bg-red-600 text-white py-2 px-4 rounded-xl font-semibold hover:bg-red-700 transition">Proceed</button>
+                    <button id="confirm-cancel" class="bg-gray-200 text-gray-700 py-2 px-4 rounded-xl font-semibold hover:bg-gray-300 transition">
+                        <i class="fas fa-ban mr-1"></i>Cancel
+                    </button>
+                    <button id="confirm-proceed" class="bg-red-600 text-white py-2 px-4 rounded-xl font-semibold hover:bg-red-700 transition">
+                        <i class="fas fa-check-circle mr-1"></i>Proceed
+                    </button>
                 </div>
             </div>
         </div>
@@ -444,19 +484,29 @@
             if (showApprovalButtons) { 
                 actionsHtml = `
                     <div class="mt-4 flex flex-col space-y-3">
-                        <textarea id="notes-${claim.id}" class="w-full p-3 border border-gray-300 rounded-xl text-sm shadow-inner" placeholder="Add approval/rejection notes..."></textarea>
+                        <textarea id="notes-${claim.id}" class="w-full p-3 border border-gray-300 rounded-xl text-sm shadow-inner transition focus:border-indigo-500" placeholder="Add approval/rejection notes..."></textarea>
                         <div class="flex space-x-3">
-                            <button onclick="handleApprovalClick('${claim.id}', 'approve')" class="w-full bg-green-600 text-white font-semibold py-2 rounded-xl hover:bg-green-700 transition shadow-md">Approve</button>
-                            <button onclick="handleApprovalClick('${claim.id}', 'reject')" class="w-full bg-red-600 text-white font-semibold py-2 rounded-xl hover:bg-red-700 transition shadow-md">Reject</button>
+                            <button onclick="handleApprovalClick('${claim.id}', 'approve')" class="w-full bg-green-600 text-white font-semibold py-2 rounded-xl hover:bg-green-700 transition shadow-md hover:shadow-lg transform hover:scale-[1.01] flex items-center justify-center space-x-2">
+                                <i class="fas fa-check"></i>
+                                <span>Approve</span>
+                            </button>
+                            <button onclick="handleApprovalClick('${claim.id}', 'reject')" class="w-full bg-red-600 text-white font-semibold py-2 rounded-xl hover:bg-red-700 transition shadow-md hover:shadow-lg transform hover:scale-[1.01] flex items-center justify-center space-x-2">
+                                <i class="fas fa-times"></i>
+                                <span>Reject</span>
+                            </button>
                         </div>
                     </div>
                 `;
             } else if (isAdminView && currentUser.role === 'admin') { 
                  const actionText = (claim.status === 'Admin_Closed' || claim.status === 'Closed') ? 'Reopen Claim' : 'Close Claim';
                  const buttonColor = (claim.status === 'Admin_Closed' || claim.status === 'Closed') ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-700 hover:bg-gray-800';
+                 const iconClass = (claim.status === 'Admin_Closed' || claim.status === 'Closed') ? 'fas fa-undo' : 'fas fa-lock';
                  actionsHtml = `
                     <div class="mt-4">
-                        <button onclick="handleAdminAction('${claim.id}', '${claim.status}')" class="w-full ${buttonColor} text-white font-semibold py-2 rounded-xl transition shadow-md">${actionText}</button>
+                        <button onclick="handleAdminAction('${claim.id}', '${claim.status}')" class="w-full ${buttonColor} text-white font-semibold py-2 rounded-xl transition shadow-md hover:shadow-lg transform hover:scale-[1.01] flex items-center justify-center space-x-2">
+                            <i class="${iconClass}"></i>
+                            <span>${actionText}</span>
+                        </button>
                     </div>
                 `;
             }
@@ -510,7 +560,7 @@
                             <span class="status-pill ${getStatusColor(claim.status)}">${claim.status.replace('_', ' ')}</span>
                         </td>
                         <td class="px-6 py-4 text-sm font-medium text-indigo-600">
-                            <svg class="w-5 h-5 inline-block transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                            <i class="fas fa-chevron-right w-4 h-4 inline-block transform transition-transform"></i>
                         </td>
                     </tr>
                 `;
@@ -612,12 +662,12 @@
                     <div class="border-b border-gray-200 mb-6">
                         <nav class="-mb-px flex space-x-10" aria-label="Tabs">
                             <button id="new-claim-tab" onclick="switchFieldTab('new')"
-                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-base border-indigo-600 text-indigo-700 font-bold">
-                                New Claim Submission
+                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-base border-indigo-600 text-indigo-700 font-bold transition">
+                                <i class="fas fa-plus-circle mr-2"></i>New Claim Submission
                             </button>
                             <button id="claim-history-tab" onclick="switchFieldTab('history')"
-                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-base border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
-                                Claim History (${claims.length})
+                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-base border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 transition">
+                                <i class="fas fa-history mr-2"></i>Claim History (${claims.length})
                             </button>
                         </nav>
                     </div>
@@ -668,7 +718,10 @@
                                     <textarea id="claim-description" rows="4" required class="input-field"></textarea>
                                 </div>
 
-                                <button type="submit" class="w-full btn-primary py-3 rounded-xl font-bold">Submit Claim</button>
+                                <button type="submit" class="w-full btn-primary py-3 rounded-xl font-bold flex items-center justify-center space-x-2">
+                                    <i class="fas fa-paper-plane"></i>
+                                    <span>Submit Claim</span>
+                                </button>
                             </form>
                         </div>
                     </div>
@@ -721,12 +774,12 @@
                     <div class="border-b border-gray-200 mb-6">
                         <nav class="-mb-px flex space-x-10" aria-label="Tabs">
                             <button data-tab-name="pending" onclick="switchApprovalTab('${roleId}', 'pending')"
-                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-base">
-                                Claims Pending Approval (${pendingClaims.length})
+                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-base transition">
+                                <i class="fas fa-clock mr-2"></i>Claims Pending Approval (${pendingClaims.length})
                             </button>
                             <button data-tab-name="approved" onclick="switchApprovalTab('${roleId}', 'approved')"
-                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-base border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
-                                History (Approved/Rejected) (${approvedClaims.length})
+                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-base border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 transition">
+                                <i class="fas fa-check-double mr-2"></i>History (Approved/Rejected) (${approvedClaims.length})
                             </button>
                         </nav>
                     </div>
@@ -901,7 +954,8 @@
             
             if (targetRow) {
                 const detailsRow = targetRow.nextElementSibling;
-                const icon = targetRow.querySelector('svg'); 
+                // Changed querySelector to find the Font Awesome icon 
+                const icon = targetRow.querySelector('.fa-chevron-right'); 
 
                 if (detailsRow && detailsRow.tagName === 'TR') {
                     if (detailsRow.classList.contains('hidden')) {
