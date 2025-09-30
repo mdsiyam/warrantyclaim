@@ -39,9 +39,9 @@
         </header>
 
         <div id="auth-container" class="max-w-md mx-auto bg-white p-8 rounded-xl shadow-2xl space-y-6">
-            <h2 class="text-3xl font-bold text-center text-indigo-600">Sign In / Register</h2>
+            <h2 class="text-3xl font-bold text-center text-indigo-600">Sign In</h2>
             <form id="auth-form" class="space-y-4">
-                <p class="text-sm text-center text-gray-500">New users get the **Field Team** role by default (enforced by the database).</p>
+                <p class="text-sm text-center text-gray-500">Only authorized users can sign in.</p>
                 <div>
                     <label for="auth-email" class="block text-sm font-medium text-gray-700">Email</label>
                     <input type="email" id="auth-email" required class="input-field">
@@ -51,8 +51,7 @@
                     <input type="password" id="auth-password" required class="input-field">
                 </div>
                 <div class="flex space-x-4">
-                    <button type="button" id="signin-btn" class="w-1/2 btn-primary py-2 rounded-lg font-semibold">Sign In</button>
-                    <button type="button" id="signup-btn" class="w-1/2 bg-indigo-500 text-white py-2 rounded-lg font-semibold hover:bg-indigo-600 transition">Register</button>
+                    <button type="button" id="signin-btn" class="w-full btn-primary py-2 rounded-lg font-semibold">Sign In</button>
                 </div>
             </form>
             <p id="auth-message" class="text-center text-red-500 text-sm hidden"></p>
@@ -130,7 +129,7 @@
         const userInfo = document.getElementById('user-info');
         
         const signInBtn = document.getElementById('signin-btn');
-        const signUpBtn = document.getElementById('signup-btn');
+        // const signUpBtn = document.getElementById('signup-btn'); // REMOVED
         const logoutBtn = document.getElementById('logout-btn');
         const authEmail = document.getElementById('auth-email');
         const authPassword = document.getElementById('auth-password');
@@ -251,22 +250,7 @@
             authMessage.classList.toggle('text-green-500', !isError);
         }
 
-        async function handleSignUp() {
-            if (!isConfigured) return setAuthMessage("System not configured. Update credentials first.", true);
-            const email = authEmail.value;
-            const password = authPassword.value;
-            if (!email || !password) return setAuthMessage("Please enter email and password.");
-
-            const { data, error } = await supabaseClient.auth.signUp({ email, password });
-
-            if (error) {
-                setAuthMessage(`Sign up error: ${error.message}`);
-            } else if (data.user) {
-                setAuthMessage("Registration successful! Please check your email for confirmation.", false);
-            } else {
-                setAuthMessage("Check your email to confirm registration before signing in.", false);
-            }
-        }
+        // handleSignUp function REMOVED as per user request
 
         async function handleSignIn() {
             if (!isConfigured) return setAuthMessage("System not configured. Update credentials first.", true);
@@ -886,7 +870,7 @@
         // --- Initialization ---
         
         signInBtn.addEventListener('click', handleSignIn);
-        signUpBtn.addEventListener('click', handleSignUp);
+        // signUpBtn.addEventListener('click', handleSignUp); // REMOVED
         logoutBtn.addEventListener('click', handleSignOut);
 
         roleSelect.addEventListener('change', (e) => {
