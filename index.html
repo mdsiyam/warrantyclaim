@@ -250,8 +250,6 @@
             authMessage.classList.toggle('text-green-500', !isError);
         }
 
-        // handleSignUp function REMOVED as per user request
-
         async function handleSignIn() {
             if (!isConfigured) return setAuthMessage("System not configured. Update credentials first.", true);
             const email = authEmail.value;
@@ -579,7 +577,7 @@
         }
         
         /**
-         * NEW: Function for Approval Dashboard tab switching (SCE and Manager).
+         * Function for Approval Dashboard tab switching (SCE and Manager).
          */
         window.switchApprovalTab = function(role, tabName) {
             currentApprovalTab = tabName;
@@ -716,7 +714,7 @@
         }
         
         /**
-         * MODIFIED: Renders the SCE/Manager approval dashboards with two tabs.
+         * Renders the SCE/Manager approval dashboards with two tabs.
          */
         function renderApprovalDashboard(claimsByStatus, title, targetDiv, roleId) { 
             const pendingClaims = claimsByStatus.pending;
@@ -811,12 +809,14 @@
             if (currentRole === 'field') {
                 renderFieldDashboard(claims);
             } else if (currentRole === 'sce') {
-                // NEW Filtering Logic for SCE
+                // Filtering Logic for SCE
+                // The SCE user should see claims needing their action (Submitted) AND claims they have already acted on (SCE_Approved/SCE_Rejected).
                 const pendingClaims = claims.filter(c => c.status === 'Submitted');
                 const approvedClaims = claims.filter(c => c.status === 'SCE_Approved' || c.status === 'SCE_Rejected');
                 renderApprovalDashboard({ pending: pendingClaims, approved: approvedClaims }, 'SCE Approval Dashboard', sceDashboard, 'sce');
             } else if (currentRole === 'manager') {
-                // NEW Filtering Logic for Manager
+                // Filtering Logic for Manager
+                // The Manager should see claims needing their action (SCE_Approved) AND claims they have already acted on (Manager_Approved/Manager_Rejected).
                 const pendingClaims = claims.filter(c => c.status === 'SCE_Approved');
                 const approvedClaims = claims.filter(c => c.status === 'Manager_Approved' || c.status === 'Manager_Rejected');
                 renderApprovalDashboard({ pending: pendingClaims, approved: approvedClaims }, 'Manager Approval Dashboard', managerDashboard, 'manager');
