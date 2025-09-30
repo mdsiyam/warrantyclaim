@@ -7,41 +7,59 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #f7fafc; }
-        /* Adjusted styles for the new table structure */
-        .status-pill { padding: 4px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
-        .btn-primary { background-color: #4f46e5; color: white; transition: background-color 0.2s; }
-        .btn-primary:hover { background-color: #4338ca; }
-        .input-field { @apply mt-1 w-full p-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500; }
-        .admin-action-btn { @apply bg-gray-500 text-white font-semibold py-2 px-3 rounded-lg hover:bg-gray-600 transition text-sm; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+        
+        /* General Look and Feel */
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; } 
+        
+        /* Utility Classes for Components */
+        .status-pill { padding: 4px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+        .btn-primary { 
+            @apply bg-indigo-600 text-white font-semibold py-2 px-4 rounded-xl shadow-md hover:bg-indigo-700 transition duration-300 ease-in-out; 
+        }
+        .input-field { 
+            /* Larger padding, softer shadow, better focus ring */
+            @apply mt-1 w-full p-3 border border-gray-300 rounded-xl bg-white shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition duration-150; 
+        }
+        .card-base { 
+            /* Standard card style for dashboards */
+            @apply bg-white p-6 border border-gray-100 rounded-2xl shadow-xl; 
+        }
+        
+        /* Table Interaction */
+        .claim-summary-row {
+            transition: background-color 0.2s;
+        }
+        .claim-summary-row:hover {
+            background-color: #eef2ff; /* Light indigo hover */
+        }
     </style>
 </head>
 <body class="p-4 sm:p-8">
 
     <div id="app" class="max-w-7xl mx-auto">
         
-        <header class="bg-white shadow-lg p-4 mb-8 rounded-xl flex flex-col md:flex-row justify-between items-center">
-            <h1 class="text-3xl font-bold text-indigo-700 mb-4 md:mb-0">WarrantyFlow</h1>
+        <header class="bg-white shadow-lg p-4 mb-8 rounded-2xl flex flex-col md:flex-row justify-between items-center sticky top-0 z-10 border-b border-indigo-100">
+            <h1 class="text-3xl font-extrabold text-indigo-700 mb-4 md:mb-0">WarrantyFlow</h1>
             <div id="auth-controls" class="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-4 hidden">
                 <p id="user-info" class="text-sm font-medium text-gray-700"></p>
                 <div class="flex items-center space-x-2">
                     <label for="role-select" class="font-medium text-gray-700 whitespace-nowrap">View as:</label>
-                    <select id="role-select" class="p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    <select id="role-select" class="p-2 border border-gray-300 rounded-xl shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
                         <option value="field">Field Team</option>
                         <option value="sce">SCE</option>
                         <option value="manager">Manager</option>
                         <option value="admin">Admin</option>
                     </select>
                 </div>
-                <button id="logout-btn" class="bg-red-500 text-white py-2 px-4 rounded-lg font-semibold hover:bg-red-600 transition">Logout</button>
+                <button id="logout-btn" class="bg-red-600 text-white py-2 px-4 rounded-xl font-semibold hover:bg-red-700 transition">Logout</button>
             </div>
         </header>
 
-        <div id="auth-container" class="max-w-md mx-auto bg-white p-8 rounded-xl shadow-2xl space-y-6">
-            <h2 class="text-3xl font-bold text-center text-indigo-600">Sign In</h2>
-            <form id="auth-form" class="space-y-4">
-                <p class="text-sm text-center text-gray-500">Only authorized users can sign in.</p>
+        <div id="auth-container" class="max-w-md mx-auto bg-white p-10 rounded-2xl shadow-2xl space-y-8">
+            <h2 class="text-4xl font-extrabold text-center text-indigo-700">Welcome Back</h2>
+            <form id="auth-form" class="space-y-6">
+                <p class="text-sm text-center text-gray-500">Sign in to access your dashboard.</p>
                 <div>
                     <label for="auth-email" class="block text-sm font-medium text-gray-700">Email</label>
                     <input type="email" id="auth-email" required class="input-field">
@@ -51,7 +69,7 @@
                     <input type="password" id="auth-password" required class="input-field">
                 </div>
                 <div class="flex space-x-4">
-                    <button type="button" id="signin-btn" class="w-full btn-primary py-2 rounded-lg font-semibold">Sign In</button>
+                    <button type="button" id="signin-btn" class="w-full btn-primary py-3 rounded-xl font-bold">Sign In</button>
                 </div>
             </form>
             <p id="auth-message" class="text-center text-red-500 text-sm hidden"></p>
@@ -65,21 +83,21 @@
             <div id="admin-dashboard" class="hidden"></div>
         </div>
 
-        <div id="notification-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center p-4 z-40">
-            <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full">
-                <h3 id="modal-title" class="text-xl font-bold mb-3 text-gray-800">Success!</h3>
-                <p id="modal-message" class="text-gray-600 mb-4">Your action was completed successfully.</p>
-                <button onclick="closeModal()" class="w-full btn-primary py-2 rounded-lg font-semibold">Close</button>
+        <div id="notification-modal" class="fixed inset-0 bg-gray-900 bg-opacity-70 hidden items-center justify-center p-4 z-40">
+            <div class="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full transform transition-all duration-300 ease-out">
+                <h3 id="modal-title" class="text-2xl font-bold mb-3 text-gray-800">Success!</h3>
+                <p id="modal-message" class="text-gray-600 mb-6"></p>
+                <button onclick="closeModal()" class="w-full btn-primary py-2 rounded-xl font-semibold">Close</button>
             </div>
         </div>
         
-        <div id="confirmation-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center p-4 z-50">
-            <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full">
-                <h3 id="confirm-title" class="text-xl font-bold mb-3 text-gray-800">Confirm Action</h3>
-                <p id="confirm-message" class="text-gray-600 mb-4">Are you sure you want to proceed?</p>
+        <div id="confirmation-modal" class="fixed inset-0 bg-gray-900 bg-opacity-70 hidden items-center justify-center p-4 z-50">
+            <div class="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full transform transition-all duration-300 ease-out">
+                <h3 id="confirm-title" class="text-2xl font-bold mb-3 text-gray-800">Confirm Action</h3>
+                <p id="confirm-message" class="text-gray-600 mb-6">Are you sure you want to proceed?</p>
                 <div class="flex justify-end space-x-3">
-                    <button id="confirm-cancel" class="bg-gray-200 text-gray-700 py-2 px-4 rounded-lg font-semibold hover:bg-gray-300 transition">Cancel</button>
-                    <button id="confirm-proceed" class="bg-red-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-red-700 transition">Proceed</button>
+                    <button id="confirm-cancel" class="bg-gray-200 text-gray-700 py-2 px-4 rounded-xl font-semibold hover:bg-gray-300 transition">Cancel</button>
+                    <button id="confirm-proceed" class="bg-red-600 text-white py-2 px-4 rounded-xl font-semibold hover:bg-red-700 transition">Proceed</button>
                 </div>
             </div>
         </div>
@@ -115,7 +133,7 @@
         let currentRole = 'field'; 
         let currentUser = null; 
         let profileListener = null; 
-        let currentApprovalTab = 'pending'; // NEW: Track the active tab for SCE/Manager
+        let currentApprovalTab = 'pending'; 
 
         // --- DOM Elements ---
         const roleSelect = document.getElementById('role-select');
@@ -196,14 +214,14 @@
 
         function getStatusColor(status) {
             switch (status) {
-                case 'Submitted': return 'bg-yellow-100 text-yellow-800';
-                case 'SCE_Approved': return 'bg-blue-100 text-blue-800';
-                case 'SCE_Rejected': return 'bg-red-100 text-red-800';
-                case 'Manager_Approved': return 'bg-green-100 text-green-800';
-                case 'Manager_Rejected': return 'bg-red-100 text-red-800';
-                case 'Closed': return 'bg-gray-200 text-gray-700';
-                case 'Admin_Closed': return 'bg-red-200 text-red-900';
-                default: return 'bg-gray-100 text-gray-600';
+                case 'Submitted': return 'bg-yellow-100 text-yellow-800 border border-yellow-300';
+                case 'SCE_Approved': return 'bg-blue-100 text-blue-800 border border-blue-300';
+                case 'SCE_Rejected': return 'bg-red-100 text-red-800 border border-red-300';
+                case 'Manager_Approved': return 'bg-green-100 text-green-800 border border-green-300';
+                case 'Manager_Rejected': return 'bg-red-100 text-red-800 border border-red-300';
+                case 'Closed': return 'bg-gray-200 text-gray-700 border border-gray-300';
+                case 'Admin_Closed': return 'bg-red-200 text-red-900 border border-red-400';
+                default: return 'bg-gray-100 text-gray-600 border border-gray-200';
             }
         }
 
@@ -219,9 +237,6 @@
             });
         }
         
-        /**
-         * Fetches the user's assigned role from the new user_profiles table.
-         */
         async function fetchUserRole(userId) {
             if (!supabaseClient) return { role: 'field', name: 'CONFIG_ERROR' };
 
@@ -282,21 +297,14 @@
 
         // --- API Calls (Interacts with RLS) ---
 
-        /**
-         * Fetches claims based on the current user's *authenticated* session.
-         * The results are automatically filtered by Supabase Row Level Security (RLS).
-         */
         async function fetchClaims() {
             if (!currentUser || !isConfigured) return []; 
             
-            // The query relies entirely on Supabase RLS to filter what is returned.
-            // RLS MUST be configured in the Supabase backend to enforce the claim visibility rules.
             let query = supabaseClient.from('claims').select('*').order('date_raised', { ascending: false });
             
             const { data, error } = await query;
             if (error) {
                 console.error(`Error fetching claims as ${currentRole}:`, error);
-                // The error often indicates an RLS restriction is preventing data return.
                 return []; 
             }
             return data;
@@ -382,7 +390,6 @@
             }
 
             const isClosed = currentStatus.includes('Closed');
-            // If currently Closed/Admin_Closed, reopen to Submitted. Otherwise, close it.
             const newStatus = isClosed ? 'Submitted' : 'Admin_Closed';
             const action = isClosed ? 'Reopen' : 'Close';
 
@@ -410,7 +417,6 @@
         }
         
         window.handleApprovalClick = function(claimId, action) {
-            // Only show the notes field for the currently visible tab
             const notesElement = document.getElementById(`notes-${claimId}`);
             const notes = notesElement ? notesElement.value : '';
             
@@ -426,27 +432,22 @@
 
         // --- Dashboard Rendering ---
 
-        /**
-         * Renders the full details card for a claim, including actions if allowed.
-         */
         function renderClaimItem(claim, showActions = false, isAdminView = false) {
             const statusClass = getStatusColor(claim.status);
 
             let actionsHtml = '';
             
-            // LOGIC TO DETERMINE IF APPROVAL BUTTONS SHOULD SHOW
             const isPendingSCE = claim.status === 'Submitted' && currentRole === 'sce';
             const isPendingManager = claim.status === 'SCE_Approved' && currentRole === 'manager';
-            // Only show actions if the user is on the 'pending' tab
             const showApprovalButtons = showActions && currentApprovalTab === 'pending' && currentUser.role === currentRole && (isPendingSCE || isPendingManager);
             
             if (showApprovalButtons) { 
                 actionsHtml = `
-                    <div class="mt-4 flex flex-col space-y-2">
-                        <textarea id="notes-${claim.id}" class="w-full p-2 border border-gray-300 rounded-lg text-sm" placeholder="Add approval/rejection notes..."></textarea>
-                        <div class="flex space-x-2">
-                            <button onclick="handleApprovalClick('${claim.id}', 'approve')" class="w-full bg-green-600 text-white font-semibold py-2 rounded-lg hover:bg-green-700 transition">Approve</button>
-                            <button onclick="handleApprovalClick('${claim.id}', 'reject')" class="w-full bg-red-600 text-white font-semibold py-2 rounded-lg hover:bg-red-700 transition">Reject</button>
+                    <div class="mt-4 flex flex-col space-y-3">
+                        <textarea id="notes-${claim.id}" class="w-full p-3 border border-gray-300 rounded-xl text-sm shadow-inner" placeholder="Add approval/rejection notes..."></textarea>
+                        <div class="flex space-x-3">
+                            <button onclick="handleApprovalClick('${claim.id}', 'approve')" class="w-full bg-green-600 text-white font-semibold py-2 rounded-xl hover:bg-green-700 transition shadow-md">Approve</button>
+                            <button onclick="handleApprovalClick('${claim.id}', 'reject')" class="w-full bg-red-600 text-white font-semibold py-2 rounded-xl hover:bg-red-700 transition shadow-md">Reject</button>
                         </div>
                     </div>
                 `;
@@ -455,36 +456,35 @@
                  const buttonColor = (claim.status === 'Admin_Closed' || claim.status === 'Closed') ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-700 hover:bg-gray-800';
                  actionsHtml = `
                     <div class="mt-4">
-                        <button onclick="handleAdminAction('${claim.id}', '${claim.status}')" class="w-full ${buttonColor} text-white font-semibold py-2 rounded-lg transition">${actionText}</button>
+                        <button onclick="handleAdminAction('${claim.id}', '${claim.status}')" class="w-full ${buttonColor} text-white font-semibold py-2 rounded-xl transition shadow-md">${actionText}</button>
                     </div>
                 `;
             }
             
-            const sceDecision = claim.sce_approval_date ? `<p class="text-xs text-gray-500 mt-1">SCE (${claim.sce_approver_id?.substring(0, 8)}): <span class="font-medium">${claim.sce_approved ? 'Approved' : 'Rejected'}</span> on ${formatDate(claim.sce_approval_date)}<span class="ml-2 italic text-gray-400">Notes: ${claim.sce_notes || 'N/A'}</span></p>` : '';
-            const managerDecision = claim.manager_approval_date ? `<p class="text-xs text-gray-500 mt-1">Manager (${claim.manager_approver_id?.substring(0, 8)}): <span class="font-medium">${claim.manager_approved ? 'Approved' : 'Rejected'}</span> on ${formatDate(claim.manager_approval_date)}<span class="ml-2 italic text-gray-400">Notes: ${claim.manager_notes || 'N/A'}</span></p>` : '';
-            const adminAction = claim.admin_action_date ? `<p class="text-xs ${claim.status.includes('Admin') ? 'text-red-500' : 'text-gray-500'} mt-1">Admin Action by ${claim.admin_action_user || 'N/A'}: Status set to ${claim.status.replace('_', ' ')} on ${formatDate(claim.admin_action_date)}</p>` : '';
+            const sceDecision = claim.sce_approval_date ? `<p class="text-sm text-gray-700 mt-1"><span class="font-bold text-blue-700">SCE:</span> <span class="font-medium">${claim.sce_approved ? 'Approved' : 'Rejected'}</span> on ${formatDate(claim.sce_approval_date)}<span class="ml-2 italic text-gray-500">Notes: ${claim.sce_notes || 'N/A'}</span></p>` : '';
+            const managerDecision = claim.manager_approval_date ? `<p class="text-sm text-gray-700 mt-1"><span class="font-bold text-green-700">Manager:</span> <span class="font-medium">${claim.manager_approved ? 'Approved' : 'Rejected'}</span> on ${formatDate(claim.manager_approval_date)}<span class="ml-2 italic text-gray-500">Notes: ${claim.manager_notes || 'N/A'}</span></p>` : '';
+            const adminAction = claim.admin_action_date ? `<p class="text-sm ${claim.status.includes('Admin') ? 'text-red-700' : 'text-gray-700'} mt-1"><span class="font-bold">Admin Action:</span> Status set to ${claim.status.replace('_', ' ')} on ${formatDate(claim.admin_action_date)}</p>` : '';
 
             return `
-                <div class="bg-white p-4 border border-gray-100 rounded-xl shadow-sm">
-                    <div class="flex justify-between items-start mb-3">
-                        <h4 class="text-lg font-semibold text-gray-800">${claim.title}</h4>
+                <div class="bg-gray-50 p-6 border border-gray-200 rounded-xl shadow-inner">
+                    <div class="flex justify-between items-start mb-4">
+                        <h4 class="text-xl font-bold text-gray-800">${claim.title}</h4>
                         <span class="status-pill ${statusClass}">${claim.status.replace('_', ' ')}</span>
                     </div>
-                    <p class="text-sm text-gray-600 mb-2">Claim ID: <code class="font-mono text-xs">${claim.id.substring(0, 8)}</code></p>
-                    <p class="text-sm text-gray-600 mb-2">Raised By: <span class="font-medium text-indigo-500">${claim.raised_by}</span> (User ID: ${claim.user_id.substring(0, 8)})</p>
+                    <p class="text-sm text-gray-600 mb-3">Claim ID: <code class="font-mono text-xs bg-gray-200 px-1 rounded">${claim.id.substring(0, 8)}</code></p>
+                    <p class="text-sm text-gray-600 mb-3 border-b pb-2">Raised By: <span class="font-semibold text-indigo-600">${claim.raised_by}</span></p>
                     
-                    <div class="mt-4 p-3 bg-indigo-50 rounded-lg space-y-1 border border-indigo-200">
-                        <p class="text-sm text-gray-700">Customer: <span class="font-medium">${claim.customer_name || 'N/A'}</span></p>
-                        <p class="text-sm text-gray-700">Model: <span class="font-medium">${claim.machine_model || 'N/A'}</span> / S/N: <span class="font-medium">${claim.equipment_serial}</span></p>
-                        <p class="text-sm text-gray-700">Run Hours: <span class="font-medium">${claim.running_hour || 'N/A'}</span></p>
-                        <p class="text-sm text-gray-700">Failure Component: <span class="font-medium">${claim.failure_component || 'N/A'}</span> (Part No: ${claim.failure_part_no || 'N/A'})</p>
-                        <p class="text-sm text-gray-700">Failure Date: <span class="font-medium">${formatDate(claim.failure_date) || 'N/A'}</span></p>
+                    <div class="mt-4 p-4 bg-white rounded-xl space-y-2 border border-indigo-200 shadow-sm">
+                        <p class="text-sm text-gray-700"><span class="font-semibold text-gray-900">Customer:</span> ${claim.customer_name || 'N/A'}</p>
+                        <p class="text-sm text-gray-700"><span class="font-semibold text-gray-900">Equipment:</span> ${claim.machine_model || 'N/A'} / S/N: ${claim.equipment_serial}</p>
+                        <p class="text-sm text-gray-700"><span class="font-semibold text-gray-900">Hours:</span> ${claim.running_hour || 'N/A'}</p>
+                        <p class="text-sm text-gray-700"><span class="font-semibold text-gray-900">Failure:</span> ${claim.failure_component || 'N/A'} (Part No: ${claim.failure_part_no || 'N/A'})</p>
+                        <p class="text-sm text-gray-700"><span class="font-semibold text-gray-900">Date:</span> ${formatDate(claim.failure_date) || 'N/A'}</p>
                     </div>
 
-                    <p class="text-sm text-gray-600 mt-4 mb-4 italic whitespace-pre-wrap">${claim.description}</p>
-                    <p class="text-xs text-gray-500">Submitted: ${formatDate(claim.date_raised)}</p>
-
-                    <div class="mt-3 p-3 bg-gray-50 rounded-lg space-y-2 border border-gray-200">
+                    <p class="text-base text-gray-800 mt-4 mb-4 whitespace-pre-wrap leading-relaxed border-l-4 pl-3 border-gray-200">${claim.description}</p>
+                    
+                    <div class="mt-4 pt-3 border-t border-gray-200 space-y-2">
                         ${sceDecision}
                         ${managerDecision}
                         ${adminAction}
@@ -494,34 +494,31 @@
             `;
         }
         
-        // MODIFIED: Shared logic for rendering the expandable claim table
         function renderClaimTable(claims, showActions = false, isAdminView = false) {
             if (claims.length === 0) {
-                return '<p class="text-gray-500 p-4 bg-white rounded-lg shadow-sm">No claims found for this view.</p>';
+                return '<p class="text-gray-600 p-6 bg-white rounded-xl shadow-lg border border-gray-200">No claims found for this view.</p>';
             }
 
             const tableRows = claims.map(claim => {
                 const detailsId = `details-${claim.id}`;
                 
-                // Summary Row (Clickable) - ADDED data-claim-id AND class 'claim-summary-row'
                 const summaryRow = `
-                    <tr data-claim-id="${claim.id}" class="claim-summary-row hover:bg-indigo-50 transition duration-150 ease-in-out cursor-pointer">
+                    <tr data-claim-id="${claim.id}" class="claim-summary-row hover:bg-indigo-50 transition duration-150 ease-in-out cursor-pointer border-b border-gray-100">
                         <td class="px-6 py-4 font-mono text-sm text-gray-900">${claim.id.substring(0, 8)}</td>
                         <td class="px-6 py-4 text-sm font-medium text-gray-700">${claim.customer_name || 'N/A'}</td>
                         <td class="px-6 py-4">
                             <span class="status-pill ${getStatusColor(claim.status)}">${claim.status.replace('_', ' ')}</span>
                         </td>
                         <td class="px-6 py-4 text-sm font-medium text-indigo-600">
-                            <svg class="w-4 h-4 inline-block transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                            <svg class="w-5 h-5 inline-block transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
                         </td>
                     </tr>
                 `;
                 
-                // Hidden Details Row (Full Card View)
                 const detailsRow = `
                     <tr id="${detailsId}" class="claim-details-row hidden"> 
                         <td colspan="4" class="p-0 border-none">
-                            <div class="p-6 bg-white border-t border-indigo-200 w-full">
+                            <div class="p-6 bg-gray-50 border-t border-indigo-200 w-full">
                                 ${renderClaimItem(claim, showActions, isAdminView)}
                             </div>
                         </td>
@@ -532,17 +529,17 @@
             }).join('');
 
             return `
-                <div class="overflow-x-auto shadow-lg rounded-xl">
+                <div class="overflow-hidden shadow-2xl rounded-2xl border border-gray-200">
                     <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-indigo-600">
+                        <thead class="bg-gray-800">
                             <tr>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Claim ID</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Customer Name</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Details</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Claim ID</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Customer Name</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Status</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">Details</th>
                             </tr>
                         </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
+                        <tbody class="bg-white divide-y divide-gray-100">
                             ${tableRows}
                         </tbody>
                     </table>
@@ -550,49 +547,48 @@
             `;
         }
 
-        /**
-         * Function for Field Dashboard tab switching.
-         */
         window.switchFieldTab = function(tabName) {
             const historyTab = document.getElementById('claim-history-tab');
             const newClaimTab = document.getElementById('new-claim-tab');
             const historyContent = document.getElementById('claim-history-content');
             const newClaimContent = document.getElementById('new-claim-content');
 
+            const activeClasses = ['border-indigo-600', 'text-indigo-700', 'font-bold'];
+            const inactiveClasses = ['border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300'];
+
             if (tabName === 'history') {
-                historyTab.classList.add('border-indigo-500', 'text-indigo-600');
-                historyTab.classList.remove('border-transparent', 'text-gray-500');
-                newClaimTab.classList.remove('border-indigo-500', 'text-indigo-600');
-                newClaimTab.classList.add('border-transparent', 'text-gray-500');
+                historyTab.classList.add(...activeClasses);
+                historyTab.classList.remove(...inactiveClasses);
+                newClaimTab.classList.remove(...activeClasses);
+                newClaimTab.classList.add(...inactiveClasses);
                 historyContent.classList.remove('hidden');
                 newClaimContent.classList.add('hidden');
             } else {
-                newClaimTab.classList.add('border-indigo-500', 'text-indigo-600');
-                newClaimTab.classList.remove('border-transparent', 'text-gray-500');
-                historyTab.classList.remove('border-indigo-500', 'text-indigo-600');
-                historyTab.classList.add('border-transparent', 'text-gray-500');
+                newClaimTab.classList.add(...activeClasses);
+                newClaimTab.classList.remove(...inactiveClasses);
+                historyTab.classList.remove(...activeClasses);
+                historyTab.classList.add(...inactiveClasses);
                 newClaimContent.classList.remove('hidden');
                 historyContent.classList.add('hidden');
             }
         }
         
-        /**
-         * Function for Approval Dashboard tab switching (SCE and Manager).
-         */
         window.switchApprovalTab = function(role, tabName) {
             currentApprovalTab = tabName;
             
             const dashboardId = role + '-dashboard';
+            const activeClasses = ['border-indigo-600', 'text-indigo-700', 'font-bold'];
+            const inactiveClasses = ['border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300'];
             
             // Update Tab Headers
             document.querySelectorAll(`#${dashboardId} nav button`).forEach(btn => {
                 const btnTabName = btn.getAttribute('data-tab-name');
                 if (btnTabName === tabName) {
-                    btn.classList.add('border-indigo-500', 'text-indigo-600');
-                    btn.classList.remove('border-transparent', 'text-gray-500');
+                    btn.classList.add(...activeClasses);
+                    btn.classList.remove(...inactiveClasses);
                 } else {
-                    btn.classList.remove('border-indigo-500', 'text-indigo-600');
-                    btn.classList.add('border-transparent', 'text-gray-500');
+                    btn.classList.remove(...activeClasses);
+                    btn.classList.add(...inactiveClasses);
                 }
             });
 
@@ -607,30 +603,30 @@
         }
 
         function renderFieldDashboard(claims) {
-            const claimHistoryTable = renderClaimTable(claims, false, false); // false = no actions, not admin view
+            const claimHistoryTable = renderClaimTable(claims, false, false);
             
             fieldDashboard.innerHTML = `
-                <div class="bg-white p-6 border border-gray-100 rounded-xl shadow-lg">
-                    <h2 class="text-3xl font-bold text-indigo-700 mb-6">Field Team Dashboard</h2>
+                <div class="card-base">
+                    <h2 class="text-3xl font-extrabold text-indigo-700 mb-6 border-b pb-3">Field Team Dashboard</h2>
 
                     <div class="border-b border-gray-200 mb-6">
-                        <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                        <nav class="-mb-px flex space-x-10" aria-label="Tabs">
                             <button id="new-claim-tab" onclick="switchFieldTab('new')"
-                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-indigo-500 text-indigo-600">
+                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-base border-indigo-600 text-indigo-700 font-bold">
                                 New Claim Submission
                             </button>
                             <button id="claim-history-tab" onclick="switchFieldTab('history')"
-                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-base border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
                                 Claim History (${claims.length})
                             </button>
                         </nav>
                     </div>
 
                     <div id="new-claim-content" class="">
-                        <div class="max-w-xl mx-auto bg-white p-6 border border-indigo-100 rounded-xl shadow-lg h-fit">
-                            <h3 class="text-2xl font-bold text-indigo-700 mb-4">Submit New Claim</h3>
-                            <form id="new-claim-form" class="space-y-4">
-                                <h4 class="text-lg font-semibold text-gray-700 border-b pb-1 mb-2">Customer & Machine</h4>
+                        <div class="max-w-xl mx-auto bg-gray-50 p-8 border border-indigo-200 rounded-2xl shadow-lg h-fit">
+                            <h3 class="text-2xl font-bold text-indigo-700 mb-6">Submit New Claim</h3>
+                            <form id="new-claim-form" class="space-y-5">
+                                <h4 class="text-lg font-semibold text-gray-700 border-b pb-1 mb-3 pt-2">Customer & Machine</h4>
                                 <div>
                                     <label for="customer-name" class="block text-sm font-medium text-gray-700">Customer Name</label>
                                     <input type="text" id="customer-name" required class="input-field">
@@ -648,7 +644,7 @@
                                     <input type="number" id="running-hour" class="input-field" step="1" min="0" placeholder="e.g., 5000">
                                 </div>
 
-                                <h4 class="text-lg font-semibold text-gray-700 border-b pb-1 mb-2 pt-2">Failure Information</h4>
+                                <h4 class="text-lg font-semibold text-gray-700 border-b pb-1 mb-3 pt-2">Failure Information</h4>
                                 <div>
                                     <label for="failure-date" class="block text-sm font-medium text-gray-700">Failure Date</label>
                                     <input type="date" id="failure-date" required class="input-field">
@@ -662,7 +658,7 @@
                                     <input type="text" id="failure-part-no" class="input-field" placeholder="Optional">
                                 </div>
                                 
-                                <h4 class="text-lg font-semibold text-gray-700 border-b pb-1 mb-2 pt-2">Problem Description</h4>
+                                <h4 class="text-lg font-semibold text-gray-700 border-b pb-1 mb-3 pt-2">Problem Description</h4>
                                 <div>
                                     <label for="claim-title" class="block text-sm font-medium text-gray-700">Claim Summary / Problem</label>
                                     <input type="text" id="claim-title" required class="input-field" placeholder="Short summary of the issue">
@@ -672,23 +668,21 @@
                                     <textarea id="claim-description" rows="4" required class="input-field"></textarea>
                                 </div>
 
-                                <button type="submit" class="w-full btn-primary py-2 rounded-lg font-semibold">Submit Claim</button>
+                                <button type="submit" class="w-full btn-primary py-3 rounded-xl font-bold">Submit Claim</button>
                             </form>
                         </div>
                     </div>
 
                     <div id="claim-history-content" class="hidden">
-                        <p class="text-sm text-gray-500 mb-4 border-l-2 pl-3 border-indigo-400 bg-indigo-50 py-2">Data displayed here is filtered by the backend security policies. You only see claims you raised.</p>
+                        <p class="text-sm text-gray-700 mb-6 border-l-4 pl-3 border-indigo-400 bg-indigo-50 py-3 px-3 rounded-lg">Data displayed here is filtered by the backend security policies. You only see claims you raised.</p>
                         ${claimHistoryTable}
                     </div>
                 </div>
             `;
             
-            // Reattach form submission listener
             document.getElementById('new-claim-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 
-                // Get form fields
                 const customerName = document.getElementById('customer-name').value;
                 const machineModel = document.getElementById('machine-model').value;
                 const runningHour = document.getElementById('running-hour').value;
@@ -709,63 +703,56 @@
 
                 await submitClaim(claimPayload);
                 e.target.reset();
-                switchFieldTab('history'); // Switch to history after submission
+                switchFieldTab('history');
             });
         }
         
-        /**
-         * Renders the SCE/Manager approval dashboards with two tabs.
-         */
         function renderApprovalDashboard(claimsByStatus, title, targetDiv, roleId) { 
             const pendingClaims = claimsByStatus.pending;
             const approvedClaims = claimsByStatus.approved;
             
-            // Pending tab needs to show approval actions (showActions = true)
             const pendingTable = renderClaimTable(pendingClaims, true); 
-            // Approved tab does not need approval actions (showActions = false)
             const approvedTable = renderClaimTable(approvedClaims, false); 
 
             targetDiv.innerHTML = `
-                <div id="${roleId}-dashboard-content" class="bg-white p-6 border border-gray-100 rounded-xl shadow-lg">
-                    <h2 class="text-3xl font-bold text-indigo-700 mb-6">${title}</h2>
+                <div id="${roleId}-dashboard-content" class="card-base">
+                    <h2 class="text-3xl font-extrabold text-indigo-700 mb-6 border-b pb-3">${title}</h2>
 
                     <div class="border-b border-gray-200 mb-6">
-                        <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                        <nav class="-mb-px flex space-x-10" aria-label="Tabs">
                             <button data-tab-name="pending" onclick="switchApprovalTab('${roleId}', 'pending')"
-                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-base">
                                 Claims Pending Approval (${pendingClaims.length})
                             </button>
                             <button data-tab-name="approved" onclick="switchApprovalTab('${roleId}', 'approved')"
-                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-base border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
                                 History (Approved/Rejected) (${approvedClaims.length})
                             </button>
                         </nav>
                     </div>
 
-                    <p class="text-sm text-gray-500 mb-4 border-l-2 pl-3 border-indigo-400 bg-indigo-50 py-2">Click any row to view full details and take action where applicable.</p>
+                    <p class="text-sm text-gray-700 mb-6 border-l-4 pl-3 border-indigo-400 bg-indigo-50 py-3 px-3 rounded-lg">Click any row to view full details and take action where applicable.</p>
 
                     <div id="${roleId}-pending-content" class="tab-content">
-                        ${pendingClaims.length > 0 ? pendingTable : '<p class="text-gray-500">No claims currently pending your approval.</p>'}
+                        ${pendingClaims.length > 0 ? pendingTable : '<p class="text-gray-600">No claims currently pending your approval.</p>'}
                     </div>
 
                     <div id="${roleId}-approved-content" class="tab-content hidden">
-                        ${approvedClaims.length > 0 ? approvedTable : '<p class="text-gray-500">No claims have been approved or rejected yet.</p>'}
+                        ${approvedClaims.length > 0 ? approvedTable : '<p class="text-gray-600">No claims have been approved or rejected yet.</p>'}
                     </div>
                 </div>
             `;
             
-            // Set initial tab state to 'pending'
             window.switchApprovalTab(roleId, 'pending');
         }
         
-        // MODIFIED: Switched from card grid to expandable table
         function renderAdminDashboard(claims) {
-            const tableHtml = renderClaimTable(claims, false, true); // false = no approval actions, true = is Admin view
+            const tableHtml = renderClaimTable(claims, false, true);
             adminDashboard.innerHTML = `
-                <div class="bg-white p-6 border border-gray-100 rounded-xl shadow-lg">
-                    <h2 class="text-3xl font-bold text-red-700 mb-6">Admin Master View (All Claims: ${claims.length})</h2>
-                    <p class="text-sm text-gray-500 mb-4 border-l-2 pl-3 border-red-400 bg-red-50 py-2">As **Admin**, you bypass all RLS filters and see all claims in the database. Click any row for details and actions.</p>
-                    ${claims.length > 0 ? tableHtml : '<p class="text-gray-500">No claims found in the database.</p>'}
+                <div class="card-base">
+                    <h2 class="text-3xl font-extrabold text-red-700 mb-6 border-b pb-3">Admin Master View (All Claims: ${claims.length})</h2>
+                    <p class="text-sm text-gray-700 mb-6 border-l-4 pl-3 border-red-400 bg-red-50 py-3 px-3 rounded-lg">As **Admin**, you bypass all RLS filters and see all claims in the database. Click any row for details and actions.</p>
+                    ${claims.length > 0 ? tableHtml : '<p class="text-gray-600">No claims found in the database.</p>'}
                 </div>
             `;
         }
@@ -773,16 +760,14 @@
         // --- Main Controller ---
 
         function switchDashboard(role) {
-            // Hide all
             fieldDashboard.classList.add('hidden');
             sceDashboard.classList.add('hidden');
             managerDashboard.classList.add('hidden');
             adminDashboard.classList.add('hidden');
 
             currentRole = role;
-            currentApprovalTab = 'pending'; // Reset approval tab state on role switch
+            currentApprovalTab = 'pending';
 
-            // Show current one
             if (role === 'field') {
                 fieldDashboard.classList.remove('hidden');
             } else if (role === 'sce') {
@@ -801,7 +786,6 @@
 
             loadingDiv.classList.remove('hidden');
             
-            // This is the call that is filtered by RLS on the Supabase side
             const claims = await fetchClaims();
             
             loadingDiv.classList.add('hidden');
@@ -809,10 +793,6 @@
             if (currentRole === 'field') {
                 renderFieldDashboard(claims);
             } else if (currentRole === 'sce') {
-                // Filtering Logic for SCE:
-                // Needs to see claims needing their action (Submitted) 
-                // AND claims they have already acted on (SCE_Approved/SCE_Rejected)
-                // AND claims that went past them to the manager (Manager_Approved/Manager_Rejected)
                 const pendingClaims = claims.filter(c => c.status === 'Submitted');
                 const approvedClaims = claims.filter(c => 
                     c.status === 'SCE_Approved' || 
@@ -822,9 +802,6 @@
                 );
                 renderApprovalDashboard({ pending: pendingClaims, approved: approvedClaims }, 'SCE Approval Dashboard', sceDashboard, 'sce');
             } else if (currentRole === 'manager') {
-                // Filtering Logic for Manager
-                // The Manager should see claims needing their action (SCE_Approved) 
-                // AND claims they have already acted on (Manager_Approved/Manager_Rejected).
                 const pendingClaims = claims.filter(c => c.status === 'SCE_Approved');
                 const approvedClaims = claims.filter(c => c.status === 'Manager_Approved' || c.status === 'Manager_Rejected');
                 renderApprovalDashboard({ pending: pendingClaims, approved: approvedClaims }, 'Manager Approval Dashboard', managerDashboard, 'manager');
@@ -842,20 +819,16 @@
                 return;
             }
 
-            // 1. Update global state
             currentUser.role = newRole;
             currentUser.name = newName;
             currentRole = newRole;
 
-            // 2. Update UI header
             userInfo.textContent = `User: ${currentUser.name} (Role: ${currentUser.role})`;
             
-            // 3. Update role selector state
             roleSelect.value = currentRole;
             roleSelect.disabled = (currentRole !== 'admin');
             roleSelect.title = (currentRole !== 'admin') ? `Access restricted to ${currentRole} view.` : `Admin can view all roles.`;
 
-            // 4. Switch dashboard view and reload data
             switchDashboard(currentRole);
             showModal("Role Updated", `Your role has been updated to **${newRole}**. The dashboard has been refreshed.`);
         }
@@ -869,7 +842,6 @@
                 .channel('roles_channel')
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'user_profiles' }, async (payload) => {
                     if (currentUser && payload.new.id === userId) {
-                         console.log("User role update detected via real-time payload:", payload.new.role);
                          refreshDashboardFromPayload(payload.new);
                     }
                 })
@@ -923,19 +895,15 @@
             }
         }
 
-        // --- Event Delegation for Table Row Click (The Fix) ---
+        // --- Event Delegation for Table Row Click ---
         document.addEventListener('click', function(e) {
-            // Find the closest ancestor element that is a TR with the 'claim-summary-row' class
             let targetRow = e.target.closest('.claim-summary-row');
             
             if (targetRow) {
-                // Get the TR immediately following the summary row, which is the details row
                 const detailsRow = targetRow.nextElementSibling;
-                // Find the icon within the clicked row to rotate it
                 const icon = targetRow.querySelector('svg'); 
 
                 if (detailsRow && detailsRow.tagName === 'TR') {
-                    // Perform the toggle logic
                     if (detailsRow.classList.contains('hidden')) {
                         detailsRow.classList.remove('hidden');
                         if (icon) icon.classList.add('rotate-90');
@@ -961,12 +929,10 @@
         });
         
         if (isConfigured) {
-            // 1. Initial Auth check and setup the auth listener
             supabaseClient.auth.onAuthStateChange((event, session) => {
                 updateUI(session);
             });
             
-            // 2. Real-time listener: loads the dashboard on any claims data change
             supabaseClient
                 .channel('claims_channel')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'claims' }, (payload) => {
