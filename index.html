@@ -423,22 +423,20 @@
                 }
             );
         }
-
-        /**
-         * New function to toggle the visibility of the detail row.
-         */
-        window.toggleDetails = function(detailsId) {
-            const detailsRow = document.getElementById(detailsId);
-            const icon = document.getElementById(`icon-${detailsId}`);
+        
+        window.handleApprovalClick = function(claimId, action) {
+            const notesElement = document.getElementById(`notes-${claimId}`);
+            const notes = notesElement ? notesElement.value : '';
             
-            if (detailsRow.classList.contains('hidden')) {
-                detailsRow.classList.remove('hidden');
-                icon.classList.add('rotate-90');
-            } else {
-                detailsRow.classList.add('hidden');
-                icon.classList.remove('rotate-90');
-            }
+            showConfirmation(
+                `${action.charAt(0).toUpperCase() + action.slice(1)} Claim?`,
+                `Are you sure you want to ${action} claim ${claimId.substring(0, 8)}?`,
+                () => {
+                    updateClaimApproval(claimId, action, notes);
+                }
+            );
         }
+
 
         // --- Dashboard Rendering ---
 
@@ -509,7 +507,7 @@
             `;
         }
         
-        // NEW: Shared logic for rendering the expandable claim table
+        // MODIFIED: Shared logic for rendering the expandable claim table - REMOVED INLINE ONCLICK
         function renderClaimTable(claims, showActions = false, isAdminView = false) {
             if (claims.length === 0) {
                 return '<p class="text-gray-500 p-4 bg-white rounded-lg shadow-sm">No claims found for this view.</p>';
@@ -518,17 +516,16 @@
             const tableRows = claims.map(claim => {
                 const detailsId = `details-${claim.id}`;
                 
-                // Summary Row (Clickable)
+                // Summary Row (Clickable) - ADDED data-claim-id AND class 'claim-summary-row'
                 const summaryRow = `
-                    <tr onclick="toggleDetails('${detailsId}')" 
-                        class="hover:bg-indigo-50 transition duration-150 ease-in-out cursor-pointer">
+                    <tr data-claim-id="${claim.id}" class="claim-summary-row hover:bg-indigo-50 transition duration-150 ease-in-out cursor-pointer">
                         <td class="px-6 py-4 font-mono text-sm text-gray-900">${claim.id.substring(0, 8)}</td>
                         <td class="px-6 py-4 text-sm font-medium text-gray-700">${claim.customer_name || 'N/A'}</td>
                         <td class="px-6 py-4">
                             <span class="status-pill ${getStatusColor(claim.status)}">${claim.status.replace('_', ' ')}</span>
                         </td>
                         <td class="px-6 py-4 text-sm font-medium text-indigo-600">
-                            <svg id="icon-${detailsId}" class="w-4 h-4 inline-block transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                            <svg class="w-4 h-4 inline-block transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
                         </td>
                     </tr>
                 `;
@@ -858,6 +855,32 @@
             }
         }
 
+        // --- Event Delegation for Table Row Click (The Fix) ---
+        document.addEventListener('click', function(e) {
+            // Find the closest ancestor row that has the 'claim-summary-row' class
+            let targetRow = e.target.closest('.claim-summary-row');
+            
+            if (targetRow) {
+                const claimId = targetRow.getAttribute('data-claim-id');
+                const detailsId = `details-${claimId}`;
+                
+                const detailsRow = document.getElementById(detailsId);
+                // Find the icon within the clicked row using the data attribute in the <tr>
+                const icon = targetRow.querySelector('svg'); 
+
+                if (detailsRow) {
+                    // Perform the toggle logic
+                    if (detailsRow.classList.contains('hidden')) {
+                        detailsRow.classList.remove('hidden');
+                        if (icon) icon.classList.add('rotate-90');
+                    } else {
+                        detailsRow.classList.add('hidden');
+                        if (icon) icon.classList.remove('rotate-90');
+                    }
+                }
+            }
+        });
+        
         // --- Initialization ---
         
         signInBtn.addEventListener('click', handleSignIn);
