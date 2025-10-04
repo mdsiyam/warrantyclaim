@@ -1,982 +1,1013 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Warranty Approval System</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #f7fafc; }
-        /* Adjusted styles for the new table structure */
-        .status-pill { padding: 4px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
-        .btn-primary { background-color: #4f46e5; color: white; transition: background-color 0.2s; }
-        .btn-primary:hover { background-color: #4338ca; }
-        .input-field { @apply mt-1 w-full p-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500; }
-        .admin-action-btn { @apply bg-gray-500 text-white font-semibold py-2 px-3 rounded-lg hover:bg-gray-600 transition text-sm; }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CE — Warranty Approval System</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    /* Custom Styling for Modern Look */
+    :root {
+      --wf-primary: #4f46e5; /* Indigo */
+      --wf-primary-dark: #3730a3; /* Darker Indigo */
+      --wf-gradient: linear-gradient(90deg, #4f46e5, #06b6d4); /* Indigo to Cyan */
+    }
+    body { font-family: 'Inter', sans-serif; background: #f1f5f9; }
+    
+    /* Enhanced Card Style */
+    .wf-card { 
+        border-radius: 16px; 
+        box-shadow: 0 10px 40px rgba(16,24,40,0.08); 
+        background: #fff; 
+        border: 1px solid #e2e8f0; 
+    }
+    
+    /* Custom Primary Button */
+    .btn-wf-primary {
+      background-color: var(--wf-primary);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 20px;
+      font-weight: 700;
+      transition: all 0.2s;
+    }
+    .btn-wf-primary:hover {
+      background-color: var(--wf-primary-dark);
+      color: white;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+    }
+    .btn-wf-primary:active {
+      background-color: var(--wf-primary-dark);
+      box-shadow: none;
+      transform: translateY(0);
+    }
+    .btn-wf-primary:disabled {
+      background-color: #a5b4fc;
+    }
+
+    /* Input Styling */
+    .form-control, .form-select { 
+      border-radius: 8px; 
+      border-color: #cbd5e1;
+      padding: 0.75rem 1rem;
+    }
+    .form-control:focus, .form-select:focus { 
+      border-color: var(--wf-primary); 
+      box-shadow: 0 0 0 0.25rem rgba(79, 70, 229, 0.25); 
+    }
+
+    /* Status Pill */
+    .status-pill { 
+      padding:6px 12px; 
+      border-radius:12px; 
+      font-weight:700; 
+      font-size:0.75rem; 
+      text-transform:uppercase;
+      display: inline-block;
+    }
+    .mono { font-family: ui-monospace, monospace; font-size:0.9rem; }
+
+    /* Navbar styling */
+    .navbar {
+      background: var(--wf-gradient) !important;
+      border-radius: 0 0 20px 20px !important;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    .navbar .form-select-sm {
+      border-radius: 8px;
+    }
+
+    /* Modal Styling */
+    .modal-content {
+      border-radius: 16px;
+    }
+
+  </style>
+
 </head>
-<body class="p-4 sm:p-8">
+<body><div id="root"></div>
 
-    <div id="app" class="max-w-7xl mx-auto">
-        
-        <header class="bg-white shadow-lg p-4 mb-8 rounded-xl flex flex-col md:flex-row justify-between items-center">
-            <h1 class="text-3xl font-bold text-indigo-700 mb-4 md:mb-0">WarrantyFlow</h1>
-            <div id="auth-controls" class="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-4 hidden">
-                <p id="user-info" class="text-sm font-medium text-gray-700"></p>
-                <div class="flex items-center space-x-2">
-                    <label for="role-select" class="font-medium text-gray-700 whitespace-nowrap">View as:</label>
-                    <select id="role-select" class="p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                        <option value="field">Field Team</option>
-                        <option value="sce">SCE</option>
-                        <option value="manager">Manager</option>
-                        <option value="admin">Admin</option>
-                    </select>
-                </div>
-                <button id="logout-btn" class="bg-red-500 text-white py-2 px-4 rounded-lg font-semibold hover:bg-red-600 transition">Logout</button>
-            </div>
-        </header>
+      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-        <div id="auth-container" class="max-w-md mx-auto bg-white p-8 rounded-xl shadow-2xl space-y-6">
-            <h2 class="text-3xl font-bold text-center text-indigo-600">Sign In</h2>
-            <form id="auth-form" class="space-y-4">
-                <p class="text-sm text-center text-gray-500">Only authorized users can sign in.</p>
-                <div>
-                    <label for="auth-email" class="block text-sm font-medium text-gray-700">Email</label>
-                    <input type="email" id="auth-email" required class="input-field">
-                </div>
-                <div>
-                    <label for="auth-password" class="block text-sm font-medium text-gray-700">Password</label>
-                    <input type="password" id="auth-password" required class="input-field">
-                </div>
-                <div class="flex space-x-4">
-                    <button type="button" id="signin-btn" class="w-full btn-primary py-2 rounded-lg font-semibold">Sign In</button>
-                </div>
-            </form>
-            <p id="auth-message" class="text-center text-red-500 text-sm hidden"></p>
-        </div>
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
-        <div id="content-area" class="hidden">
-            <div id="loading" class="text-center text-indigo-500 p-8">Loading dashboard...</div>
-            <div id="field-dashboard" class="hidden"></div>
-            <div id="sce-dashboard" class="hidden"></div>
-            <div id="manager-dashboard" class="hidden"></div>
-            <div id="admin-dashboard" class="hidden"></div>
-        </div>
+    // NOTE: This uses a publicly available demo key and URL.
+    const SUPABASE_URL = 'https://vebjjlfjlhobatqqwlfq.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZlYmpqbGZqbGhvYmF0cXF3bGZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkxMzY5NTMsImV4cCI6MjA3NDcxMjk1M30.Ks1ZHFAELRJvh3ppjNdVFPrhiwv7lTYg3mwiLgmSw60';
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    window.supabaseClient = supabaseClient;
 
-        <div id="notification-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center p-4 z-40">
-            <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full">
-                <h3 id="modal-title" class="text-xl font-bold mb-3 text-gray-800">Success!</h3>
-                <p id="modal-message" class="text-gray-600 mb-4">Your action was completed successfully.</p>
-                <button onclick="closeModal()" class="w-full btn-primary py-2 rounded-lg font-semibold">Close</button>
-            </div>
-        </div>
-        
-        <div id="confirmation-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center p-4 z-50">
-            <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full">
-                <h3 id="confirm-title" class="text-xl font-bold mb-3 text-gray-800">Confirm Action</h3>
-                <p id="confirm-message" class="text-gray-600 mb-4">Are you sure you want to proceed?</p>
-                <div class="flex justify-end space-x-3">
-                    <button id="confirm-cancel" class="bg-gray-200 text-gray-700 py-2 px-4 rounded-lg font-semibold hover:bg-gray-300 transition">Cancel</button>
-                    <button id="confirm-proceed" class="bg-red-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-red-700 transition">Proceed</button>
-                </div>
-            </div>
-        </div>
+    function formatDate(iso){ if(!iso) return '-'; return new Date(iso).toLocaleString('en-US',{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); }
+    function getStatusClass(status){
+      switch(status){
+        case 'Submitted': return 'bg-warning text-dark';
+        case 'SCE_Approved': return 'bg-primary text-white';
+        case 'SCE_Rejected': return 'bg-danger text-white';
+        case 'Manager_Approved': return 'bg-success text-white';
+        case 'Manager_Rejected': return 'bg-danger text-white';
+        case 'Closed': return 'bg-secondary text-white';
+        case 'Admin_Closed': return 'bg-dark text-white';
+        default: return 'bg-light text-dark';
+      }
+    }
+
+    async function fetchClaims(){
+      const { data, error } = await supabaseClient.from('claims').select('*').order('date_raised',{ascending:false});
+      if(error) throw error; return data||[];
+    }
+    async function submitClaim(payload){
+      // Ensure date_raised is set, and user_id is retrieved from session if available
+      const session = await supabaseClient.auth.getSession();
+      const userId = session.data.session?.user.id || 'anonymous';
+
+      const { data, error } = await supabaseClient.from('claims').insert({...payload, user_id: userId, date_raised: new Date().toISOString(), status:'Submitted'}).select();
+      if(error) throw error; return data[0];
+    }
+    async function updateClaimApproval(id,action,notes,role,currentUser){
+      let update={};
+      const approvalDate = new Date().toISOString();
+
+      if(role==='sce') {
+        update={ status:action==='approve'?'SCE_Approved':'SCE_Rejected', sce_notes:notes, sce_approval_date: approvalDate };
+      }
+      if(role==='manager') {
+        update={ status:action==='approve'?'Manager_Approved':'Manager_Rejected', manager_notes:notes, manager_approval_date: approvalDate };
+      }
+      
+      const { error } = await supabaseClient.from('claims').update(update).eq('id',id);
+      if(error) throw error; return true;
+    }
+    async function handleAdminAction(id,close){
+      const { error } = await supabaseClient.from('claims').update({status: close?'Admin_Closed':'Submitted', admin_action_date: new Date().toISOString()}).eq('id',id);
+      if(error) throw error; return true;
+    }
+    async function fetchUserRole(uid){
+      const { data, error } = await supabaseClient.from('user_profiles').select('role,email').eq('id',uid).single();
+      if(error) return {role:'field', name:'Unknown'}; return {role:data.role, name:data.email};
+    }
+
+    window.wf = { fetchClaims, submitClaim, updateClaimApproval, handleAdminAction, fetchUserRole, formatDate, getStatusClass };
+  </script>
+
+
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+/* -----------------------
+   Small UI helpers
+   ----------------------- */
+function Spinner() {
+  return (
+    <div className="d-flex justify-content-center my-5">
+      <div className="spinner-border text-primary" style={{width:'3rem', height:'3rem'}} role="status"></div>
     </div>
+  );
+}
 
-    <script type="module">
-        // 🚨🚨🚨 ACTION REQUIRED: REPLACE THESE PLACEHOLDERS WITH YOUR ACTUAL SUPABASE CREDENTIALS 🚨🚨🚨
-        const SUPABASE_URL = 'https://vebjjlfjlhobatqqwlfq.supabase.co'; 
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZlYmpqbGZqbGhvYmF0cXF3bGZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkxMzY5NTMsImV4cCI6MjA3NDcxMjk1M30.Ks1ZHFAELRJvh3ppjNdVFPrhiwv7lTYg3mwiLgmSw60'; 
-        
-        let supabaseClient;
-        let isConfigured = true;
+/* -----------------------
+   Navbar
+   ----------------------- */
+function AppNavbar({ user, roleView, onRoleChange, onLogout, isAdmin }) {
+  return (
+    <nav className="navbar navbar-expand-lg mb-4 p-3 shadow-lg" style={{background: 'var(--wf-gradient)'}}>
+      <div className="container-fluid">
+        <div className="d-flex align-items-center gap-3">
+          <div className="text-white">
+            <i className="bi bi-shield-lock-fill fs-1"></i>
+          </div>
+          <div>
+            <div className="text-white fw-bolder fs-2">ACI Motors Ltd (Construction Equipment)</div>
+            <div className="small text-white">Warranty Approval System</div>
+          </div>
+        </div>
+        <div className="d-flex align-items-center ms-auto gap-3">
+          {user && (
+            <>
+              <div className="text-white small me-2 d-none d-md-block">
+                <i className="bi bi-person-circle me-1"></i> {user.name || user.email || user.id.slice(0,8)}
+              </div>
+              <select 
+                className="form-select form-select-sm bg-white text-dark shadow-sm border-0" 
+                style={{width:150}} 
+                value={roleView} 
+                onChange={(e)=>onRoleChange(e.target.value)} 
+                disabled={!isAdmin}
+              >
+                <option value="field">Field</option>
+                <option value="sce">SCE</option>
+                <option value="manager">Manager</option>
+                <option value="admin">Admin</option>
+              </select>
+              <button className="btn btn-outline-light btn-sm fw-bold" onClick={onLogout}>
+                <i className="bi bi-box-arrow-right"></i>
+                <span className="d-none d-md-inline ms-1">Logout</span>
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </nav>
+  );
+}
 
-        if (SUPABASE_URL.includes('YOUR_SUPABASE_PROJECT_URL') || SUPABASE_ANON_KEY.includes('YOUR_SUPABASE_ANON_KEY')) {
-            console.error("FATAL ERROR: Please update SUPABASE_URL and SUPABASE_ANON_KEY in the script block.");
-            isConfigured = false;
-        }
-
-        if (isConfigured) {
-             const { createClient } = supabase;
-             supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        } else {
-             // Display a prominent warning if not configured
-             document.getElementById('auth-form').innerHTML = `
-                 <div class="p-4 bg-red-100 border-l-4 border-red-500 text-red-700 rounded-lg">
-                     <p class="font-bold">Configuration Required!</p>
-                     <p>Please update the <code>SUPABASE_URL</code> and <code>SUPABASE_ANON_KEY</code> variables in the code.</p>
-                 </div>
-             `;
-        }
-
-        // --- Global State ---
-        let currentRole = 'field'; 
-        let currentUser = null; 
-        let profileListener = null; 
-        let currentApprovalTab = 'pending'; // NEW: Track the active tab for SCE/Manager
-
-        // --- DOM Elements ---
-        const roleSelect = document.getElementById('role-select');
-        const loadingDiv = document.getElementById('loading');
-        const fieldDashboard = document.getElementById('field-dashboard');
-        const sceDashboard = document.getElementById('sce-dashboard');
-        const managerDashboard = document.getElementById('manager-dashboard');
-        const adminDashboard = document.getElementById('admin-dashboard');
-        const authContainer = document.getElementById('auth-container');
-        const contentArea = document.getElementById('content-area');
-        const authControls = document.getElementById('auth-controls');
-        const userInfo = document.getElementById('user-info');
-        
-        const signInBtn = document.getElementById('signin-btn');
-        const logoutBtn = document.getElementById('logout-btn');
-        const authEmail = document.getElementById('auth-email');
-        const authPassword = document.getElementById('auth-password');
-        const authMessage = document.getElementById('auth-message');
-
-        const modal = document.getElementById('notification-modal');
-        const modalTitle = document.getElementById('modal-title');
-        const modalMessage = document.getElementById('modal-message');
-        
-        const confirmationModal = document.getElementById('confirmation-modal');
-        const confirmTitle = document.getElementById('confirm-title');
-        const confirmMessage = document.getElementById('confirm-message');
-        const confirmCancel = document.getElementById('confirm-cancel');
-        const confirmProceed = document.getElementById('confirm-proceed');
-
-
-        // --- Utility Functions ---
-        
-        function showModal(title, message, isError = false) {
-            modalTitle.textContent = title;
-            modalMessage.textContent = message;
-            
-            if (isError) {
-                 modalTitle.classList.add('text-red-700');
-                 modalTitle.classList.remove('text-gray-800');
-            } else {
-                 modalTitle.classList.remove('text-red-700');
-                 modalTitle.classList.add('text-gray-800');
-            }
-
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        }
-
-        window.closeModal = function() {
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-            // Reload the dashboard after modal closes to reflect changes
-            if (currentUser) loadDashboard(); 
-        }
-        
-        let pendingAction = null;
-        function showConfirmation(title, message, onConfirm) {
-            confirmTitle.textContent = title;
-            confirmMessage.textContent = message;
-            pendingAction = onConfirm;
-
-            confirmProceed.onclick = () => {
-                confirmationModal.classList.add('hidden');
-                confirmationModal.classList.remove('flex');
-                if (pendingAction) {
-                    pendingAction();
-                }
-            };
-            confirmCancel.onclick = () => {
-                confirmationModal.classList.add('hidden');
-                confirmationModal.classList.remove('flex');
-                pendingAction = null;
-            };
-
-            confirmationModal.classList.remove('hidden');
-            confirmationModal.classList.add('flex');
-        }
-
-        function getStatusColor(status) {
-            switch (status) {
-                case 'Submitted': return 'bg-yellow-100 text-yellow-800';
-                case 'SCE_Approved': return 'bg-blue-100 text-blue-800';
-                case 'SCE_Rejected': return 'bg-red-100 text-red-800';
-                case 'Manager_Approved': return 'bg-green-100 text-green-800';
-                case 'Manager_Rejected': return 'bg-red-100 text-red-800';
-                case 'Closed': return 'bg-gray-200 text-gray-700';
-                case 'Admin_Closed': return 'bg-red-200 text-red-900';
-                default: return 'bg-gray-100 text-gray-600';
-            }
-        }
-
-        function formatDate(isoString) {
-            if (!isoString) return 'N/A';
-            // Check if it's a date-only string (like YYYY-MM-DD)
-            if (isoString.length === 10 && isoString.includes('-')) {
-                 return new Date(isoString).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-            }
-            // Otherwise, treat as datetime
-            return new Date(isoString).toLocaleDateString('en-US', {
-                year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-            });
-        }
-        
-        /**
-         * Fetches the user's assigned role from the new user_profiles table.
-         */
-        async function fetchUserRole(userId) {
-            if (!supabaseClient) return { role: 'field', name: 'CONFIG_ERROR' };
-
-            const { data, error } = await supabaseClient
-                .from('user_profiles')
-                .select('role, email') 
-                .eq('id', userId)
-                .single();
-
-            if (error && error.code !== 'PGRST116') {
-                console.warn("Error fetching user profile:", error.message);
-            }
-            
-            return { 
-                role: data?.role || 'field',
-                name: data?.email || 'N/A (Role fetch failed)' 
-            };
-        }
-
-        // --- Authentication Functions ---
-
-        function setAuthMessage(message, isError = true) {
-            authMessage.textContent = message;
-            authMessage.classList.remove('hidden');
-            authMessage.classList.toggle('text-red-500', isError);
-            authMessage.classList.toggle('text-green-500', !isError);
-        }
-
-        async function handleSignIn() {
-            if (!isConfigured) return setAuthMessage("System not configured. Update credentials first.", true);
-            const email = authEmail.value;
-            const password = authPassword.value;
-            if (!email || !password) return setAuthMessage("Please enter email and password.");
-
-            const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-
-            if (error) {
-                setAuthMessage(`Sign in error: ${error.message}`);
-            }
-        }
-        
-        async function handleSignOut() {
-            if (!isConfigured) return;
-            try {
-                const { error } = await supabaseClient.auth.signOut();
-                if (error) {
-                    console.error("Logout error:", error);
-                    showModal('Logout Failed', `There was an issue logging out: ${error.message}`, true);
-                } else {
-                    console.log("Successfully signed out. UI update triggered by onAuthStateChange.");
-                }
-            } catch (e) {
-                console.error("Critical logout exception:", e);
-                showModal('Logout Failed', 'A critical error occurred during logout.', true);
-            }
-        }
-
-
-        // --- API Calls (Interacts with RLS) ---
-
-        /**
-         * Fetches claims based on the current user's *authenticated* session.
-         * The results are automatically filtered by Supabase Row Level Security (RLS).
-         */
-        async function fetchClaims() {
-            if (!currentUser || !isConfigured) return []; 
-            
-            // The query relies entirely on Supabase RLS to filter what is returned.
-            // RLS MUST be configured in the Supabase backend to enforce the claim visibility rules.
-            let query = supabaseClient.from('claims').select('*').order('date_raised', { ascending: false });
-            
-            const { data, error } = await query;
-            if (error) {
-                console.error(`Error fetching claims as ${currentRole}:`, error);
-                // The error often indicates an RLS restriction is preventing data return.
-                return []; 
-            }
-            return data;
-        }
-
-        async function submitClaim(claimData) {
-            if (!currentUser || !isConfigured) {
-                showModal('Error', 'You must be logged in to submit a claim.');
-                return;
-            }
-
-            const { data, error } = await supabaseClient
-                .from('claims')
-                .insert({
-                    ...claimData,
-                    user_id: currentUser.id,
-                    raised_by: currentUser.name, 
-                    status: 'Submitted', 
-                })
-                .select();
-            
-            if (error) {
-                console.error('Error submitting claim:', error);
-                showModal('Submission Failed', `There was an error: ${error.message}.`);
-            } else {
-                showModal('Claim Submitted', `Claim #${data[0].id.substring(0, 8)} has been submitted for SCE approval.`);
-            }
-        }
-
-        async function updateClaimApproval(claimId, action, notes) {
-            if (!currentUser || !isConfigured) {
-                showModal('Error', 'You must be logged in to approve/reject claims.');
-                return;
-            }
-            
-            let updatePayload = {};
-            let newStatus;
-            let successMessage;
-
-            if (currentRole === 'sce') {
-                newStatus = action === 'approve' ? 'SCE_Approved' : 'SCE_Rejected';
-                updatePayload = {
-                    status: newStatus,
-                    sce_approved: action === 'approve',
-                    sce_approver_id: currentUser.id,
-                    sce_approval_date: new Date().toISOString(),
-                    sce_notes: notes
-                };
-                successMessage = `Claim #${claimId.substring(0, 8)} was ${action === 'approve' ? 'approved' : 'rejected'} by SCE.`;
-
-            } else if (currentRole === 'manager') {
-                newStatus = action === 'approve' ? 'Manager_Approved' : 'Manager_Rejected';
-                updatePayload = {
-                    status: newStatus,
-                    manager_approved: action === 'approve',
-                    manager_approver_id: currentUser.id,
-                    manager_approval_date: new Date().toISOString(),
-                    manager_notes: notes
-                };
-                successMessage = `Claim #${claimId.substring(0, 8)} was ${action === 'approve' ? 'approved' : 'rejected'} by Manager.`;
-            } else {
-                showModal('Error', 'Your current role does not have approval privileges.');
-                return;
-            }
-
-            const { error } = await supabaseClient
-                .from('claims')
-                .update(updatePayload)
-                .eq('id', claimId);
-
-            if (error) {
-                console.error('Error updating claim status:', error);
-                showModal('Update Failed', `There was an error: ${error.message}. This is usually an RLS violation (wrong status or wrong role).`);
-            } else {
-                showModal('Approval Updated', successMessage);
-            }
-        }
-        
-        window.handleAdminAction = async function(claimId, currentStatus) {
-             if (!currentUser || currentUser.role !== 'admin' || !isConfigured) {
-                showModal('Error', 'Unauthorized action. Only the authenticated Admin role can perform this.');
-                return;
-            }
-
-            const isClosed = currentStatus.includes('Closed');
-            // If currently Closed/Admin_Closed, reopen to Submitted. Otherwise, close it.
-            const newStatus = isClosed ? 'Submitted' : 'Admin_Closed';
-            const action = isClosed ? 'Reopen' : 'Close';
-
-            showConfirmation(
-                `${action} Claim?`,
-                `Are you sure you want to ${action.toLowerCase()} claim ${claimId.substring(0, 8)}? This will set the status to: ${newStatus.replace('_', ' ')}.`,
-                async () => {
-                    const { error } = await supabaseClient
-                        .from('claims')
-                        .update({ 
-                            status: newStatus,
-                            admin_action_date: new Date().toISOString(),
-                            admin_action_user: currentUser.name
-                        })
-                        .eq('id', claimId);
-        
-                    if (error) {
-                        console.error('Error updating claim status:', error);
-                        showModal('Update Failed', `There was an error: ${error.message}.`);
-                    } else {
-                        showModal('Claim Updated', `Claim #${claimId.substring(0, 8)} was successfully ${newStatus.replace('_', ' ').toLowerCase()}.`);
-                    }
-                }
-            );
-        }
-        
-        window.handleApprovalClick = function(claimId, action) {
-            // Only show the notes field for the currently visible tab
-            const notesElement = document.getElementById(`notes-${claimId}`);
-            const notes = notesElement ? notesElement.value : '';
-            
-            showConfirmation(
-                `${action.charAt(0).toUpperCase() + action.slice(1)} Claim?`,
-                `Are you sure you want to ${action} claim ${claimId.substring(0, 8)}?`,
-                () => {
-                    updateClaimApproval(claimId, action, notes);
-                }
-            );
-        }
-
-
-        // --- Dashboard Rendering ---
-
-        /**
-         * Renders the full details card for a claim, including actions if allowed.
-         */
-        function renderClaimItem(claim, showActions = false, isAdminView = false) {
-            const statusClass = getStatusColor(claim.status);
-
-            let actionsHtml = '';
-            
-            // LOGIC TO DETERMINE IF APPROVAL BUTTONS SHOULD SHOW
-            const isPendingSCE = claim.status === 'Submitted' && currentRole === 'sce';
-            const isPendingManager = claim.status === 'SCE_Approved' && currentRole === 'manager';
-            // Only show actions if the user is on the 'pending' tab
-            const showApprovalButtons = showActions && currentApprovalTab === 'pending' && currentUser.role === currentRole && (isPendingSCE || isPendingManager);
-            
-            if (showApprovalButtons) { 
-                actionsHtml = `
-                    <div class="mt-4 flex flex-col space-y-2">
-                        <textarea id="notes-${claim.id}" class="w-full p-2 border border-gray-300 rounded-lg text-sm" placeholder="Add approval/rejection notes..."></textarea>
-                        <div class="flex space-x-2">
-                            <button onclick="handleApprovalClick('${claim.id}', 'approve')" class="w-full bg-green-600 text-white font-semibold py-2 rounded-lg hover:bg-green-700 transition">Approve</button>
-                            <button onclick="handleApprovalClick('${claim.id}', 'reject')" class="w-full bg-red-600 text-white font-semibold py-2 rounded-lg hover:bg-red-700 transition">Reject</button>
-                        </div>
-                    </div>
-                `;
-            } else if (isAdminView && currentUser.role === 'admin') { 
-                 const actionText = (claim.status === 'Admin_Closed' || claim.status === 'Closed') ? 'Reopen Claim' : 'Close Claim';
-                 const buttonColor = (claim.status === 'Admin_Closed' || claim.status === 'Closed') ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-gray-700 hover:bg-gray-800';
-                 actionsHtml = `
-                    <div class="mt-4">
-                        <button onclick="handleAdminAction('${claim.id}', '${claim.status}')" class="w-full ${buttonColor} text-white font-semibold py-2 rounded-lg transition">${actionText}</button>
-                    </div>
-                `;
-            }
-            
-            const sceDecision = claim.sce_approval_date ? `<p class="text-xs text-gray-500 mt-1">SCE (${claim.sce_approver_id?.substring(0, 8)}): <span class="font-medium">${claim.sce_approved ? 'Approved' : 'Rejected'}</span> on ${formatDate(claim.sce_approval_date)}<span class="ml-2 italic text-gray-400">Notes: ${claim.sce_notes || 'N/A'}</span></p>` : '';
-            const managerDecision = claim.manager_approval_date ? `<p class="text-xs text-gray-500 mt-1">Manager (${claim.manager_approver_id?.substring(0, 8)}): <span class="font-medium">${claim.manager_approved ? 'Approved' : 'Rejected'}</span> on ${formatDate(claim.manager_approval_date)}<span class="ml-2 italic text-gray-400">Notes: ${claim.manager_notes || 'N/A'}</span></p>` : '';
-            const adminAction = claim.admin_action_date ? `<p class="text-xs ${claim.status.includes('Admin') ? 'text-red-500' : 'text-gray-500'} mt-1">Admin Action by ${claim.admin_action_user || 'N/A'}: Status set to ${claim.status.replace('_', ' ')} on ${formatDate(claim.admin_action_date)}</p>` : '';
-
-            return `
-                <div class="bg-white p-4 border border-gray-100 rounded-xl shadow-sm">
-                    <div class="flex justify-between items-start mb-3">
-                        <h4 class="text-lg font-semibold text-gray-800">${claim.title}</h4>
-                        <span class="status-pill ${statusClass}">${claim.status.replace('_', ' ')}</span>
-                    </div>
-                    <p class="text-sm text-gray-600 mb-2">Claim ID: <code class="font-mono text-xs">${claim.id.substring(0, 8)}</code></p>
-                    <p class="text-sm text-gray-600 mb-2">Raised By: <span class="font-medium text-indigo-500">${claim.raised_by}</span> (User ID: ${claim.user_id.substring(0, 8)})</p>
-                    
-                    <div class="mt-4 p-3 bg-indigo-50 rounded-lg space-y-1 border border-indigo-200">
-                        <p class="text-sm text-gray-700">Customer: <span class="font-medium">${claim.customer_name || 'N/A'}</span></p>
-                        <p class="text-sm text-gray-700">Model: <span class="font-medium">${claim.machine_model || 'N/A'}</span> / S/N: <span class="font-medium">${claim.equipment_serial}</span></p>
-                        <p class="text-sm text-gray-700">Run Hours: <span class="font-medium">${claim.running_hour || 'N/A'}</span></p>
-                        <p class="text-sm text-gray-700">Failure Component: <span class="font-medium">${claim.failure_component || 'N/A'}</span> (Part No: ${claim.failure_part_no || 'N/A'})</p>
-                        <p class="text-sm text-gray-700">Failure Date: <span class="font-medium">${formatDate(claim.failure_date) || 'N/A'}</span></p>
-                    </div>
-
-                    <p class="text-sm text-gray-600 mt-4 mb-4 italic whitespace-pre-wrap">${claim.description}</p>
-                    <p class="text-xs text-gray-500">Submitted: ${formatDate(claim.date_raised)}</p>
-
-                    <div class="mt-3 p-3 bg-gray-50 rounded-lg space-y-2 border border-gray-200">
-                        ${sceDecision}
-                        ${managerDecision}
-                        ${adminAction}
-                    </div>
-                    ${actionsHtml}
+/* -----------------------
+   Auth form
+   ----------------------- */
+function AuthForm({ onSignIn, message }) {
+  const [loading, setLoading] = useState(false);
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setLoading(true);
+    const email = e.target.email.value;
+    const password = e.target.password.value;
+    try {
+      await onSignIn(email, password);
+    } catch (err) {
+      // error message already handled by parent
+    } finally {
+      setLoading(false);
+    }
+  }
+  return (
+    <div className="d-flex justify-content-center align-items-center" style={{minHeight:'80vh'}}>
+      <div className="card wf-card shadow-xl" style={{maxWidth:600, width:'100%'}}>
+        <div className="row g-0">
+          <div className="col-md-6 d-none d-md-flex align-items-center justify-content-center p-4" style={{background:'#f8fafc', borderTopLeftRadius:16, borderBottomLeftRadius:16}}>
+            <div className="text-center p-3">
+              <i className="bi bi-gear-fill" style={{fontSize:'4rem', color:'var(--wf-primary)'}}></i>
+              <h4 className="mt-3 fw-bold" style={{color:'var(--wf-primary-dark)'}}>Construction Equipment</h4>
+              <p className="small-muted mt-2">Access your claim management console.</p>
+            </div>
+          </div>
+          <div className="col-12 col-md-6">
+            <div className="card-body p-5">
+              <h4 className="mb-1 fw-bold">Sign In</h4>
+              <p className="small-muted mb-4">Use your organizational credentials</p>
+              {message && <div className="alert alert-danger py-2 small fw-bold">{message}</div>}
+              <form onSubmit={handleSubmit}>
+                <div className="mb-3">
+                  <label className="form-label small fw-bold">Email</label>
+                  <input name="email" type="email" className="form-control" placeholder="Email" required />
                 </div>
-            `;
-        }
-        
-        // MODIFIED: Shared logic for rendering the expandable claim table
-        function renderClaimTable(claims, showActions = false, isAdminView = false) {
-            if (claims.length === 0) {
-                return '<p class="text-gray-500 p-4 bg-white rounded-lg shadow-sm">No claims found for this view.</p>';
-            }
+                <div className="mb-4">
+                  <label className="form-label small fw-bold">Password</label>
+                  <input name="password" type="password" className="form-control" placeholder="Password" required />
+                </div>
+                <div className="d-grid">
+                  <button className="btn btn-wf-primary btn-lg" type="submit" disabled={loading}>
+                    {loading ? <span className="spinner-border spinner-border-sm me-2"></span> : <i className="bi bi-box-arrow-in-right me-2"></i>} Sign In
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-            const tableRows = claims.map(claim => {
-                const detailsId = `details-${claim.id}`;
-                
-                // Summary Row (Clickable) - ADDED data-claim-id AND class 'claim-summary-row'
-                const summaryRow = `
-                    <tr data-claim-id="${claim.id}" class="claim-summary-row hover:bg-indigo-50 transition duration-150 ease-in-out cursor-pointer">
-                        <td class="px-6 py-4 font-mono text-sm text-gray-900">${claim.id.substring(0, 8)}</td>
-                        <td class="px-6 py-4 text-sm font-medium text-gray-700">${claim.customer_name || 'N/A'}</td>
-                        <td class="px-6 py-4">
-                            <span class="status-pill ${getStatusColor(claim.status)}">${claim.status.replace('_', ' ')}</span>
-                        </td>
-                        <td class="px-6 py-4 text-sm font-medium text-indigo-600">
-                            <svg class="w-4 h-4 inline-block transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
-                        </td>
-                    </tr>
-                `;
-                
-                // Hidden Details Row (Full Card View)
-                const detailsRow = `
-                    <tr id="${detailsId}" class="claim-details-row hidden"> 
-                        <td colspan="4" class="p-0 border-none">
-                            <div class="p-6 bg-white border-t border-indigo-200 w-full">
-                                ${renderClaimItem(claim, showActions, isAdminView)}
-                            </div>
-                        </td>
-                    </tr>
-                `;
-                
-                return summaryRow + detailsRow;
-            }).join('');
+/* -----------------------
+   Notification modal (Bootstrap)
+   ----------------------- */
+function NotificationModal({ open, title, message, onClose, type = 'success' }) {
+  const ref = useRef();
+  useEffect(() => {
+    if (!ref.current) return;
+    const bs = bootstrap.Modal.getOrCreateInstance(ref.current);
+    open ? bs.show() : bs.hide();
+  }, [open]);
 
-            return `
-                <div class="overflow-x-auto shadow-lg rounded-xl">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-indigo-600">
-                            <tr>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Claim ID</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Customer Name</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Details</th>
+  const iconClass = type === 'success' ? "bi bi-check-circle-fill text-success" : "bi bi-exclamation-triangle-fill text-danger";
+  const buttonClass = type === 'success' ? 'btn-wf-primary' : 'btn-outline-secondary';
+
+  return (
+    <div className="modal fade" ref={ref} tabIndex="-1">
+      <div className="modal-dialog modal-sm modal-dialog-centered">
+        <div className="modal-content wf-card shadow-lg">
+          <div className="modal-body p-4 text-center">
+            <i className={`${iconClass} display-4 mb-3`}></i>
+            <h5 className="mb-2 fw-bold">{title}</h5>
+            <p className="small-muted mb-0">{message}</p>
+          </div>
+          <div className="modal-footer border-0 justify-content-center">
+            <button className={`btn ${buttonClass} fw-bold`} onClick={onClose}>Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* -----------------------
+   Confirm Modal
+   ----------------------- */
+function ConfirmModal({ open, title, message, onCancel, onConfirm }) {
+  const ref = useRef();
+  useEffect(() => {
+    if (!ref.current) return;
+    const bs = bootstrap.Modal.getOrCreateInstance(ref.current);
+    open ? bs.show() : bs.hide();
+  }, [open]);
+  return (
+    <div className="modal fade" ref={ref} tabIndex="-1">
+      <div className="modal-dialog modal-sm modal-dialog-centered">
+        <div className="modal-content wf-card shadow-lg">
+          <div className="modal-header border-0 pb-0">
+            <h5 className="modal-title fw-bold text-danger"><i className="bi bi-exclamation-octagon-fill me-2"></i>{title}</h5>
+            <button className="btn-close" onClick={onCancel}></button>
+          </div>
+          <div className="modal-body">
+            <p className="small-muted">{message}</p>
+          </div>
+          <div className="modal-footer border-0">
+            <button className="btn btn-outline-secondary" onClick={onCancel}>Cancel</button>
+            <button className="btn btn-danger fw-bold" onClick={onConfirm}>Confirm</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* -----------------------
+   Claim Detail Modal
+   ----------------------- */
+function ClaimDetailModal({ claim, open, onClose }) {
+  const ref = useRef();
+
+  // Function to call when a button is clicked to trigger Bootstrap's hide transition
+  const handleHide = () => {
+    const bs = bootstrap.Modal.getInstance(ref.current);
+    if (bs) {
+        // Trigger Bootstrap's hide transition, which will fire 'hidden.bs.modal'
+        bs.hide(); 
+    }
+  };
+
+  useEffect(() => {
+    if (!ref.current) return;
+    const bs = bootstrap.Modal.getOrCreateInstance(ref.current);
+    const modalElement = ref.current;
+
+    // Listen for the 'hidden' event and call React's onClose only when 
+    // Bootstrap has fully removed the modal and its backdrop.
+    modalElement.addEventListener('hidden.bs.modal', onClose); 
+
+    // Control visibility
+    if (open) {
+      bs.show();
+    } 
+
+    // Cleanup function to remove event listener
+    return () => {
+        modalElement.removeEventListener('hidden.bs.modal', onClose);
+    }
+  }, [open, onClose]); // open dependency is still needed for initial show()
+
+  if (!claim) return null;
+
+  const isApproved = claim.status.includes('Approved');
+  const isRejected = claim.status.includes('Rejected');
+
+  // --- START OF FIX: Calculate correct SCE Review Status ---
+  const sceReviewStatus = 
+    claim.status === 'Submitted' ? 'Submitted' : 
+    claim.status === 'SCE_Rejected' ? 'SCE_Rejected' : 
+    'SCE_Approved'; // If anything else (SCE_Approved, Manager_*, Closed, Admin_Closed), it passed SCE.
+  
+  // --- START OF FIX: Calculate correct Manager Review Status ---
+  let managerReviewStatus = 'bg-light text-dark'; // Default status for N/A
+  let managerReviewDisplay = 'N/A';
+
+  if (claim.status === 'SCE_Approved') {
+      // Use 'Submitted' status styling (usually warning/pending) and display 'Pending'
+      managerReviewStatus = 'Submitted'; 
+      managerReviewDisplay = 'Pending';
+  } else if (claim.status.startsWith('Manager_') || claim.status.startsWith('Closed') || claim.status.startsWith('Admin_Closed')) {
+      // Use the actual Manager outcome or Closed status
+      managerReviewStatus = claim.status;
+      managerReviewDisplay = claim.status.replace('_',' ');
+  }
+  // --- END OF FIX ---
+
+  return (
+    <div className="modal fade" ref={ref} tabIndex="-1">
+      <div className="modal-dialog modal-lg modal-dialog-scrollable">
+        <div className="modal-content wf-card">
+          <div className="modal-header border-bottom">
+            <h5 className="modal-title fw-bold"><i className="bi bi-card-text me-2"></i> Claim Details</h5>
+            <button className="btn-close" onClick={handleHide}></button> 
+          </div>
+          <div className="modal-body p-4">
+            <h4 className="mb-3 text-primary">{claim.title}</h4>
+            <div className={`p-3 mb-4 rounded-3 text-center ${isApproved ? 'bg-success-subtle text-success' : isRejected ? 'bg-danger-subtle text-danger' : 'bg-warning-subtle text-warning'}`}>
+                Current Status: <span className="fw-bold fs-6">{claim.status.replace('_',' ')}</span>
+            </div>
+
+            <h6 className="fw-bold mb-3 border-bottom pb-2">Equipment & Failure Information</h6>
+            <dl className="row small">
+              <dt className="col-sm-3 fw-medium">Claim ID</dt><dd className="col-sm-9 mono">{claim.id}</dd>
+              <dt className="col-sm-3 fw-medium">Customer</dt><dd className="col-sm-9">{claim.customer_name || '-'}</dd>
+              <dt className="col-sm-3 fw-medium">Model / Serial</dt><dd className="col-sm-9">{claim.machine_model || '-'} / {claim.equipment_serial || '-'}</dd>
+              <dt className="col-sm-3 fw-medium">Failure Component</dt><dd className="col-sm-9">{claim.failure_component || '-'} (Part: {claim.failure_part_no || '-'})</dd>
+              <dt className="col-sm-3 fw-medium">Running Hour</dt><dd className="col-sm-9">{claim.running_hour || '-'}</dd>
+              <dt className="col-sm-3 fw-medium">Failure Date</dt><dd className="col-sm-9">{window.wf.formatDate(claim.failure_date)}</dd>
+            </dl>
+
+            <h6 className="fw-bold mt-4 mb-3 border-bottom pb-2">Description</h6>
+            <p className="small">{claim.description || 'No detailed description provided.'}</p>
+            
+            <h6 className="fw-bold mt-4 mb-3 border-bottom pb-2">Approval Flow</h6>
+            <div className="row">
+                <div className="col-md-6 mb-3">
+                    <div className="card h-100 bg-light border-0 shadow-sm p-3">
+                        <div className="small-muted fw-bold mb-2">SCE Review</div>
+                        {/* CORRECTED SCE STATUS LOGIC */}
+                        <p className="mb-1 small">Status: <span className={`status-pill ${window.wf.getStatusClass(sceReviewStatus)}`}>{sceReviewStatus.replace('_',' ')}</span></p>
+                        <p className="mb-1 small">Date: {window.wf.formatDate(claim.sce_approval_date) || '-'}</p>
+                        <p className="mb-0 small fw-medium mt-2">Notes:</p>
+                        <p className="small fst-italic">{claim.sce_notes || 'No notes.'}</p>
+                    </div>
+                </div>
+                <div className="col-md-6 mb-3">
+                    <div className="card h-100 bg-light border-0 shadow-sm p-3">
+                        <div className="small-muted fw-bold mb-2">Manager Review</div>
+                        {/* CORRECTED MANAGER STATUS LOGIC */}
+                        <p className="mb-1 small">Status: <span className={`status-pill ${window.wf.getStatusClass(managerReviewStatus)}`}>{managerReviewDisplay}</span></p>
+                        <p className="mb-1 small">Date: {window.wf.formatDate(claim.manager_approval_date) || '-'}</p>
+                        <p className="mb-0 small fw-medium mt-2">Notes:</p>
+                        <p className="small fst-italic">{claim.manager_notes || 'No notes.'}</p>
+                    </div>
+                </div>
+            </div>
+            
+          </div>
+          <div className="modal-footer border-0">
+            <button className="btn btn-outline-secondary fw-bold" onClick={handleHide}>Close</button> 
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* -----------------------
+   Field Dashboard (New Claim + History)
+   ----------------------- */
+function FieldDashboard({ currentUser, claims, onRefresh, onOpenDetail }) {
+  const [msg, setMsg] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  // FIX: New state to manage active tab without relying on Bootstrap's JS for styling
+  const [activeTab, setActiveTab] = useState('new'); 
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setSubmitting(true);
+    setMsg(null);
+    const fd = new FormData(e.target);
+
+    const payload = {
+      title: fd.get('title'),
+      description: fd.get('description'),
+      customer_name: fd.get('customer_name'),
+      machine_model: fd.get('machine_model'),
+      equipment_serial: fd.get('equipment_serial'),
+      running_hour: parseInt(fd.get('running_hour')) || null,
+      failure_date: fd.get('failure_date') || null,
+      failure_component: fd.get('failure_component'),
+      failure_part_no: fd.get('failure_part_no'),
+      // Also add who raised the claim explicitly for display purposes
+      raised_by: currentUser.email
+    };
+
+    try {
+      await window.wf.submitClaim(payload);
+      setMsg({ type: 'success', text: 'Claim submitted successfully! Check the History tab.' });
+      e.target.reset();
+      await onRefresh();
+      // FIX: Update React state to switch tab
+      setActiveTab('history'); 
+
+    } catch (err) {
+      console.error(err);
+      setMsg({ type: 'error', text: err.message || 'Submission failed. Check console for details.' });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const userClaims = claims.filter(c => (c.user_id === currentUser.id || c.raised_by === currentUser.email));
+
+  return (
+    <div className="card wf-card p-4 mb-3">
+      <div className="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+        <h5 className="mb-0 text-primary"><i className="bi bi-person-badge me-2"></i>Field Dashboard</h5>
+        <div className="small-muted">Submit new claims & view history</div>
+      </div>
+
+      <ul className="nav nav-pills mb-4">
+        {/* FIX: Control active class and click handler via React state */}
+        <li className="nav-item me-2">
+            <button 
+                className={`nav-link fw-bold ${activeTab === 'new' ? 'active bg-primary text-white' : 'text-dark'}`}
+                onClick={() => setActiveTab('new')}
+            >
+                New Claim
+            </button>
+        </li>
+        {/* FIX: Control active class and click handler via React state */}
+        <li className="nav-item">
+            <button 
+                className={`nav-link fw-bold ${activeTab === 'history' ? 'active bg-primary text-white' : 'text-dark'}`}
+                onClick={() => setActiveTab('history')}
+            >
+                History <span className="badge bg-light text-dark ms-2">{userClaims.length}</span>
+            </button>
+        </li>
+      </ul>
+
+      <div className="tab-content">
+        {/* FIX: Conditionally show content based on React state */}
+        <div className={`tab-pane fade ${activeTab === 'new' ? 'show active' : ''}`}>
+          <form onSubmit={handleSubmit} className="row g-4">
+            <h6 className="fw-bold text-secondary">Customer & Equipment Details</h6>
+            <div className="col-md-6">
+              <label className="form-label small fw-bold">Customer Name</label>
+              <input name="customer_name" className="form-control" required />
+            </div>
+            <div className="col-md-6">
+              <label className="form-label small fw-bold">Machine Model</label>
+              <input name="machine_model" className="form-control" required />
+            </div>
+            <div className="col-md-4">
+              <label className="form-label small fw-bold">Serial Number</label>
+              <input name="equipment_serial" className="form-control" required />
+            </div>
+            <div className="col-md-4">
+              <label className="form-label small fw-bold">Running Hour (Optional)</label>
+              <input name="running_hour" type="number" className="form-control" />
+            </div>
+            <div className="col-md-4">
+              <label className="form-label small fw-bold">Failure Date</label>
+              <input name="failure_date" type="date" className="form-control" />
+            </div>
+
+            <h6 className="fw-bold text-secondary mt-4">Failure & Part Information</h6>
+            <div className="col-md-6">
+              <label className="form-label small fw-bold">Failure Component</label>
+              <input name="failure_component" className="form-control" />
+            </div>
+            <div className="col-md-6">
+              <label className="form-label small fw-bold">Part No.</label>
+              <input name="failure_part_no" className="form-control" />
+            </div>
+
+            <h6 className="fw-bold text-secondary mt-4">Claim Summary & Description</h6>
+            <div className="col-12">
+              <label className="form-label small fw-bold">Summary Title</label>
+              <input name="title" className="form-control" placeholder="E.g., Engine failure due to oil leak" required />
+            </div>
+            <div className="col-12">
+              <label className="form-label small fw-bold">Detailed description of failure</label>
+              <textarea name="description" rows="4" className="form-control" required></textarea>
+            </div>
+
+            <div className="col-12 d-flex gap-3 pt-3">
+              <button className="btn btn-wf-primary btn-lg" disabled={submitting}>
+                {submitting ? <span className="spinner-border spinner-border-sm me-2"></span> : <i className="bi bi-send me-2"></i>} Submit Claim
+              </button>
+              <button type="reset" className="btn btn-outline-secondary btn-lg">Reset Form</button>
+            </div>
+
+            {msg && <div className={`mt-4 alert ${msg.type==='success' ? 'alert-success' : 'alert-danger'}`}>{msg.text}</div>}
+          </form>
+        </div>
+
+        {/* FIX: Conditionally show content based on React state */}
+        <div className={`tab-pane fade ${activeTab === 'history' ? 'show active' : ''}`}>
+          <div className="table-responsive">
+            <table className="table table-hover align-middle">
+              <thead className="table-light">
+                <tr><th>ID</th><th>Customer</th><th>Title</th><th>Status</th><th>Raised</th><th></th></tr>
+              </thead>
+              <tbody>
+                {userClaims.length === 0 && <tr><td colSpan="6" className="small-muted p-4 text-center">No claims submitted by you yet.</td></tr>}
+                {userClaims.map(c => (
+                  <tr key={c.id} style={{cursor:'pointer'}} onClick={()=>onOpenDetail(c)} className="shadow-sm border-bottom">
+                    <td className="mono small">{c.id.slice(0,8)}</td>
+                    <td className="fw-medium">{c.customer_name}</td>
+                    <td>{c.title}</td>
+                    <td><span className={`status-pill ${window.wf.getStatusClass(c.status)}`}>{c.status.replace('_',' ')}</span></td>
+                    <td className="small-muted">{window.wf.formatDate(c.date_raised)}</td>
+                    <td><i className="bi bi-chevron-right small text-muted"></i></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* -----------------------
+   Approval Dashboard (SCE / Manager)
+   ----------------------- */
+function ApprovalDashboard({ role, currentUser, claims, onRefresh, onOpenDetail, showNotif }) {
+  const [tab, setTab] = useState('pending');
+  const [processingId, setProcessingId] = useState(null);
+  const [notes, setNotes] = useState({});
+
+  // Filter claims based on the role and current status
+  const pending = claims.filter(c => (role==='sce' ? c.status === 'Submitted' : c.status === 'SCE_Approved'));
+  const history = claims.filter(c => {
+    if (role === 'sce') return c.status.startsWith('SCE_') || c.status.startsWith('Manager_') || c.status.startsWith('Closed');
+    if (role === 'manager') return c.status.startsWith('Manager_') || c.status.startsWith('Closed');
+    return false;
+  });
+
+  // Manager specific: To show all claims
+  const allClaims = claims; 
+
+  async function handleAction(claimId, action) {
+    setProcessingId(claimId);
+    try {
+      await window.wf.updateClaimApproval(claimId, action, notes[claimId] || '', role, currentUser);
+      await onRefresh();
+      showNotif('Success', `Claim ${claimId.slice(0,8)} successfully ${action === 'approve' ? 'Approved' : 'Rejected'}.`);
+      setNotes(prev => { delete prev[claimId]; return {...prev}; });
+    } catch (err) {
+      showNotif('Error', err.message || 'Action failed');
+    } finally {
+      setProcessingId(null);
+    }
+  }
+
+  return (
+    <div className="card wf-card p-4 mb-3">
+      <div className="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+        <h5 className="mb-0 text-primary"><i className={`bi bi-${role==='sce'?'person-check-fill':'bank2'} me-2`}></i>{role.toUpperCase()} Approval Dashboard</h5>
+        <div className="small-muted">Review pending claims</div>
+      </div>
+
+      <ul className="nav nav-pills mb-4">
+        <li className="nav-item"><button className={`nav-link fw-bold ${tab==='pending'?'active bg-primary text-white':'text-dark'}`} onClick={()=>setTab('pending')}>Pending ({pending.length})</button></li>
+        <li className="nav-item ms-2">
+            <button className={`nav-link fw-bold ${tab==='history'?'active bg-primary text-white':'text-dark'}`} onClick={()=>setTab('history')}>
+                {role === 'manager' ? `All Claims (${allClaims.length})` : `History (${history.length})`}
+            </button>
+        </li>
+      </ul>
+
+      {tab === 'pending' && (
+        <>
+          {pending.length === 0 && <p className="small-muted p-4 text-center">🎉 All clear! No pending claims requiring your attention.</p>}
+          {pending.map(c => (
+            <div key={c.id} className="card mb-3 shadow-lg border-start border-5 border-warning rounded-4">
+              <div className="card-body">
+                <div className="d-flex justify-content-between align-items-start">
+                  <div>
+                    <h6 className="mb-1 text-primary fw-bold">{c.title}</h6>
+                    <div className="small-muted">Customer: {c.customer_name} • <span className="mono">{c.id.slice(0,8)}</span></div>
+                  </div>
+                  <div>
+                    <span className={`status-pill ${window.wf.getStatusClass(c.status)}`}>{c.status.replace('_',' ')}</span>
+                  </div>
+                </div>
+
+                <p className="mt-3 mb-3 border-top pt-3 small text-break">{c.description.substring(0, 150)}{c.description.length > 150 ? '...' : ''}</p>
+
+                <div className="mb-3">
+                  <textarea className="form-control" rows="3" placeholder={`Add ${role.toUpperCase()} notes/justification (required for rejection)...`} value={notes[c.id]||''} onChange={(e)=>setNotes(prev=>({...prev, [c.id]: e.target.value}))}></textarea>
+                </div>
+
+                <div className="d-flex gap-2">
+                  <button className="btn btn-success fw-bold flex-grow-1" disabled={processingId===c.id} onClick={()=>handleAction(c.id,'approve')}>
+                    {processingId===c.id ? <span className="spinner-border spinner-border-sm me-2"></span> : <i className="bi bi-check-circle me-2"></i>} Approve
+                  </button>
+                  <button className="btn btn-danger fw-bold flex-grow-1" disabled={processingId===c.id} onClick={()=>handleAction(c.id,'reject')}>
+                    {processingId===c.id ? <span className="spinner-border spinner-border-sm me-2"></span> : <i className="bi bi-x-circle me-2"></i>} Reject
+                  </button>
+                  <button className="btn btn-outline-secondary ms-auto fw-bold" onClick={()=>onOpenDetail(c)}>Details</button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+
+      {tab === 'history' && (
+        <div className="list-group">
+        {role === 'manager' ? (
+             <div className="table-responsive">
+                <table className="table table-hover align-middle">
+                    <thead className="table-light">
+                        <tr><th>ID</th><th>Customer</th><th>Title</th><th>Status</th><th>Raised</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        {allClaims.length === 0 && <tr><td colSpan="6" className="small-muted p-4 text-center">No claims found.</td></tr>}
+                        {allClaims.map(c => (
+                            <tr key={c.id} style={{cursor:'pointer'}} onClick={()=>onOpenDetail(c)} className="shadow-sm border-bottom">
+                                <td className="mono small">{c.id.slice(0,8)}</td>
+                                <td className="fw-medium">{c.customer_name}</td>
+                                <td>{c.title}</td>
+                                <td><span className={`status-pill ${window.wf.getStatusClass(c.status)}`}>{c.status.replace('_',' ')}</span></td>
+                                <td className="small-muted">{window.wf.formatDate(c.date_raised)}</td>
+                                <td><i className="bi bi-chevron-right small text-muted"></i></td>
                             </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            ${tableRows}
-                        </tbody>
-                    </table>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        ) : (
+            <>
+                {history.length === 0 && <p className="small-muted p-3 text-center">No review history yet.</p>}
+                {history.map(c => (
+                    <div key={c.id} className="list-group-item list-group-item-action d-flex justify-content-between align-items-center wf-card mb-2 p-3" onClick={()=>onOpenDetail(c)} style={{borderRadius: '12px', cursor:'pointer'}}>
+                    <div>
+                        <div className="fw-bold">{c.title}</div>
+                        <div className="small-muted">Customer: {c.customer_name} • Raised: {window.wf.formatDate(c.date_raised)}</div>
+                    </div>
+                    <span className={`status-pill ${window.wf.getStatusClass(c.status)}`}>{c.status.replace('_',' ')}</span>
+                    </div>
+                ))}
+            </>
+        )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* -----------------------
+   Admin Dashboard
+   ----------------------- */
+function AdminDashboard({ currentUser, claims, onRefresh, onOpenDetail, openConfirm, showNotif }) {
+  
+  function confirmToggle(c) {
+    const toClose = !(c.status === 'Admin_Closed' || c.status === 'Closed');
+    const actionText = toClose ? 'Close' : 'Reopen';
+    
+    // Using ConfirmModal instead of native confirm()
+    openConfirm(
+      `${actionText} Claim`,
+      `Are you sure you want to ${actionText.toLowerCase()} claim ${c.id.slice(0,8)}? This action is powerful and updates the status.`,
+      () => toggleClose(c, toClose)
+    );
+  }
+
+  async function toggleClose(c, toClose) {
+    try {
+      await window.wf.handleAdminAction(c.id, toClose);
+      await onRefresh();
+      showNotif('Success', `Claim ${c.id.slice(0,8)} has been successfully ${toClose ? 'closed' : 'reopened'}.`, 'success');
+    } catch (err) {
+      showNotif('Error', err.message || 'Admin action failed', 'error');
+    }
+  }
+
+  return (
+    <div className="card wf-card p-4 mb-3">
+      <div className="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+        <h5 className="mb-0 text-primary"><i className="bi bi-person-gear me-2"></i>Admin Master View</h5>
+        <div className="small-muted">All claims in the system</div>
+      </div>
+
+      <div className="table-responsive">
+        <table className="table table-hover align-middle">
+          <thead className="table-light">
+            <tr><th>ID</th><th>Customer</th><th>Title</th><th>Raised By</th><th>Status</th><th>Actions</th></tr>
+          </thead>
+          <tbody>
+            {claims.map(c => (
+              <tr key={c.id} className="shadow-sm border-bottom">
+                <td className="mono small">{c.id.slice(0,8)}</td>
+                <td className="fw-medium">{c.customer_name}</td>
+                <td>{c.title}</td>
+                <td>{c.raised_by || c.user_id?.slice(0,8)}</td>
+                <td><span className={`status-pill ${window.wf.getStatusClass(c.status)}`}>{c.status.replace('_',' ')}</span></td>
+                <td>
+                  <div className="d-flex gap-2">
+                    <button className="btn btn-sm btn-outline-primary" onClick={()=>onOpenDetail(c)}>Details</button>
+                    <button className="btn btn-sm btn-outline-danger fw-bold" onClick={()=>confirmToggle(c)}>{(c.status==='Admin_Closed' || c.status==='Closed') ? 'Reopen' : 'Close'}</button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {claims.length === 0 && <tr><td colSpan="6" className="p-4 small-muted text-center">No claims found in the database.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* -----------------------
+   Top-level App
+   ----------------------- */
+function App() {
+  const [session, setSession] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
+  const [roleView, setRoleView] = useState('field');
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [claims, setClaims] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [authMsg, setAuthMsg] = useState('');
+  const [notif, setNotif] = useState({open:false, title:'', message:'', type:'success'});
+  const [confirmState, setConfirmState] = useState({open:false, title:'', message:'', cb:null});
+  const [selectedClaim, setSelectedClaim] = useState(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+
+  useEffect(()=> {
+    // initial session check
+    window.supabaseClient.auth.getSession().then(({data})=>{
+      if (data && data.session) {
+        setSession(data.session);
+        initForSession(data.session);
+      }
+    });
+
+    const { data: listener } = window.supabaseClient.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if(session) initForSession(session);
+      else {
+        setUserProfile(null);
+        setClaims([]);
+      }
+    });
+
+    return ()=> listener.subscription.unsubscribe();
+  }, []);
+
+  async function initForSession(session) {
+    try {
+      const profile = await window.wf.fetchUserRole(session.user.id);
+      setUserProfile({ id: session.user.id, email: profile.name, role: profile.role });
+      setRoleView(profile.role || 'field');
+      setIsAdmin(profile.role === 'admin');
+      await loadClaims();
+    } catch (err) {
+      console.error(err);
+      showNotif('Profile Error', err.message || 'Failed to load profile or role.', 'error');
+    }
+  }
+
+  async function loadClaims() {
+    setLoading(true);
+    try {
+      const data = await window.wf.fetchClaims();
+      setClaims(data || []);
+    } catch (err) {
+      console.error(err);
+      showNotif('Load Error', err.message || 'Failed to load claims data.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function signIn(email, password) {
+    setAuthMsg('');
+    try {
+      const { error } = await window.supabaseClient.auth.signInWithPassword({ email, password });
+      if (error) {
+        setAuthMsg(error.message);
+        throw error;
+      }
+    } catch (err) {
+      setAuthMsg(err.message || 'Sign in failed');
+      throw err;
+    }
+  }
+
+  async function signOut() {
+    try {
+      await window.supabaseClient.auth.signOut();
+      setSession(null);
+      setUserProfile(null);
+      setClaims([]);
+    } catch (err) {
+      console.error(err);
+      showNotif('Logout Failed', err.message || 'Could not log out.', 'error');
+    }
+  }
+
+  function handleRoleChange(newRole) {
+    if (!isAdmin) {
+      showNotif('Access Denied', 'Only Admin users can switch roles.', 'error');
+      setRoleView(userProfile?.role || 'field');
+      return;
+    }
+    setRoleView(newRole);
+  }
+
+  // Centralized notification function
+  function showNotif(title, message, type='success') { setNotif({ open:true, title, message, type }); }
+  function hideNotif() { setNotif({ open:false, title:'', message:'', type:'success' }); }
+
+  // Centralized confirmation function
+  function openConfirm(title, message, cb) { setConfirmState({ open:true, title, message, cb }); }
+  function closeConfirm() { setConfirmState({ open:false, title:'', message:'', cb:null }); }
+  function confirmProceed() { if (confirmState.cb) confirmState.cb(); closeConfirm(); }
+
+  // Claim detail open/close handlers
+  function openDetail(claim) { setSelectedClaim(claim); setDetailOpen(true); }
+  function closeDetail() { setSelectedClaim(null); setDetailOpen(false); } // This is called by the 'hidden.bs.modal' event listener now
+
+  // render main
+  return (
+    <div className="container" style={{maxWidth:1200}}>
+      <AppNavbar user={userProfile} roleView={roleView} onRoleChange={handleRoleChange} onLogout={signOut} isAdmin={isAdmin}/>
+      {!session || !userProfile ? (
+        <div className="mt-5">
+          <AuthForm onSignIn={signIn} message={authMsg} />
+        </div>
+      ) : (
+        <>
+          <div className="row gx-4">
+            <div className="col-lg-8">
+              <div style={{minHeight: loading ? '300px' : 'auto'}}>
+                {roleView === 'field' && <FieldDashboard currentUser={userProfile} claims={claims} onRefresh={loadClaims} onOpenDetail={openDetail} />}
+                {roleView === 'sce' && <ApprovalDashboard role="sce" currentUser={userProfile} claims={claims} onRefresh={loadClaims} onOpenDetail={openDetail} showNotif={showNotif} />}
+                {roleView === 'manager' && <ApprovalDashboard role="manager" currentUser={userProfile} claims={claims} onRefresh={loadClaims} onOpenDetail={openDetail} showNotif={showNotif} />}
+                {roleView === 'admin' && <AdminDashboard currentUser={userProfile} claims={claims} onRefresh={loadClaims} onOpenDetail={openDetail} openConfirm={openConfirm} showNotif={showNotif} />}
+                {loading && <Spinner />}
+              </div>
+            </div>
+
+            <div className="col-lg-4">
+              <div className="card wf-card p-4 mb-4 shadow-lg">
+                <h6 className="fw-bold mb-3 text-secondary">Quick Stats</h6>
+                <div className="d-flex justify-content-between align-items-center mb-3 p-3 rounded-2 bg-light">
+                  <div>
+                    <div className="small-muted fw-bold">Total Claims</div>
+                    <div className="h4 fw-bolder text-primary mt-1">{claims.length}</div>
+                  </div>
+                  <div className="text-end">
+                    <div className="small-muted fw-bold">Pending Approval</div>
+                    <div className="h5 fw-bolder text-warning mt-1">{claims.filter(c=>c.status==='Submitted' || c.status==='SCE_Approved').length}</div>
+                  </div>
                 </div>
-            `;
-        }
+              </div>
 
-        /**
-         * Function for Field Dashboard tab switching.
-         */
-        window.switchFieldTab = function(tabName) {
-            const historyTab = document.getElementById('claim-history-tab');
-            const newClaimTab = document.getElementById('new-claim-tab');
-            const historyContent = document.getElementById('claim-history-content');
-            const newClaimContent = document.getElementById('new-claim-content');
-
-            if (tabName === 'history') {
-                historyTab.classList.add('border-indigo-500', 'text-indigo-600');
-                historyTab.classList.remove('border-transparent', 'text-gray-500');
-                newClaimTab.classList.remove('border-indigo-500', 'text-indigo-600');
-                newClaimTab.classList.add('border-transparent', 'text-gray-500');
-                historyContent.classList.remove('hidden');
-                newClaimContent.classList.add('hidden');
-            } else {
-                newClaimTab.classList.add('border-indigo-500', 'text-indigo-600');
-                newClaimTab.classList.remove('border-transparent', 'text-gray-500');
-                historyTab.classList.remove('border-indigo-500', 'text-indigo-600');
-                historyTab.classList.add('border-transparent', 'text-gray-500');
-                newClaimContent.classList.remove('hidden');
-                historyContent.classList.add('hidden');
-            }
-        }
-        
-        /**
-         * Function for Approval Dashboard tab switching (SCE and Manager).
-         */
-        window.switchApprovalTab = function(role, tabName) {
-            currentApprovalTab = tabName;
-            
-            const dashboardId = role + '-dashboard';
-            
-            // Update Tab Headers
-            document.querySelectorAll(`#${dashboardId} nav button`).forEach(btn => {
-                const btnTabName = btn.getAttribute('data-tab-name');
-                if (btnTabName === tabName) {
-                    btn.classList.add('border-indigo-500', 'text-indigo-600');
-                    btn.classList.remove('border-transparent', 'text-gray-500');
-                } else {
-                    btn.classList.remove('border-indigo-500', 'text-indigo-600');
-                    btn.classList.add('border-transparent', 'text-gray-500');
-                }
-            });
-
-            // Update Tab Content
-            document.querySelectorAll(`#${dashboardId} .tab-content`).forEach(content => {
-                if (content.id === `${role}-${tabName}-content`) {
-                    content.classList.remove('hidden');
-                } else {
-                    content.classList.add('hidden');
-                }
-            });
-        }
-
-        function renderFieldDashboard(claims) {
-            const claimHistoryTable = renderClaimTable(claims, false, false); // false = no actions, not admin view
-            
-            fieldDashboard.innerHTML = `
-                <div class="bg-white p-6 border border-gray-100 rounded-xl shadow-lg">
-                    <h2 class="text-3xl font-bold text-indigo-700 mb-6">Field Team Dashboard</h2>
-
-                    <div class="border-b border-gray-200 mb-6">
-                        <nav class="-mb-px flex space-x-8" aria-label="Tabs">
-                            <button id="new-claim-tab" onclick="switchFieldTab('new')"
-                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-indigo-500 text-indigo-600">
-                                New Claim Submission
-                            </button>
-                            <button id="claim-history-tab" onclick="switchFieldTab('history')"
-                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
-                                Claim History (${claims.length})
-                            </button>
-                        </nav>
+              <div className="card wf-card p-4 mb-4 shadow-lg">
+                <h6 className="fw-bold mb-3 text-secondary">Recent Activity</h6>
+                {claims.slice(0,5).map(c => (
+                  <div key={c.id} className="d-flex justify-content-between align-items-start border-bottom py-2">
+                    <div>
+                      <div className="small-muted">{c.customer_name}</div>
+                      <div className="fw-bold small">{c.title}</div>
                     </div>
-
-                    <div id="new-claim-content" class="">
-                        <div class="max-w-xl mx-auto bg-white p-6 border border-indigo-100 rounded-xl shadow-lg h-fit">
-                            <h3 class="text-2xl font-bold text-indigo-700 mb-4">Submit New Claim</h3>
-                            <form id="new-claim-form" class="space-y-4">
-                                <h4 class="text-lg font-semibold text-gray-700 border-b pb-1 mb-2">Customer & Machine</h4>
-                                <div>
-                                    <label for="customer-name" class="block text-sm font-medium text-gray-700">Customer Name</label>
-                                    <input type="text" id="customer-name" required class="input-field">
-                                </div>
-                                <div>
-                                    <label for="machine-model" class="block text-sm font-medium text-gray-700">Machine Model</label>
-                                    <input type="text" id="machine-model" required class="input-field">
-                                </div>
-                                <div>
-                                    <label for="claim-serial" class="block text-sm font-medium text-gray-700">Serial Number</label>
-                                    <input type="text" id="claim-serial" required class="input-field">
-                                </div>
-                                <div>
-                                    <label for="running-hour" class="block text-sm font-medium text-gray-700">Running Hours (Approx)</label>
-                                    <input type="number" id="running-hour" class="input-field" step="1" min="0" placeholder="e.g., 5000">
-                                </div>
-
-                                <h4 class="text-lg font-semibold text-gray-700 border-b pb-1 mb-2 pt-2">Failure Information</h4>
-                                <div>
-                                    <label for="failure-date" class="block text-sm font-medium text-gray-700">Failure Date</label>
-                                    <input type="date" id="failure-date" required class="input-field">
-                                </div>
-                                <div>
-                                    <label for="failure-component" class="block text-sm font-medium text-gray-700">Failure Component</label>
-                                    <input type="text" id="failure-component" required class="input-field" placeholder="e.g., Hydraulic Pump, Engine Belt">
-                                </div>
-                                <div>
-                                    <label for="failure-part-no" class="block text-sm font-medium text-gray-700">Part No. of Failure Component</label>
-                                    <input type="text" id="failure-part-no" class="input-field" placeholder="Optional">
-                                </div>
-                                
-                                <h4 class="text-lg font-semibold text-gray-700 border-b pb-1 mb-2 pt-2">Problem Description</h4>
-                                <div>
-                                    <label for="claim-title" class="block text-sm font-medium text-gray-700">Claim Summary / Problem</label>
-                                    <input type="text" id="claim-title" required class="input-field" placeholder="Short summary of the issue">
-                                </div>
-                                <div>
-                                    <label for="claim-description" class="block text-sm font-medium text-gray-700">Detailed Description of Fault</label>
-                                    <textarea id="claim-description" rows="4" required class="input-field"></textarea>
-                                </div>
-
-                                <button type="submit" class="w-full btn-primary py-2 rounded-lg font-semibold">Submit Claim</button>
-                            </form>
-                        </div>
+                    <div className="text-end">
+                      <div className={`status-pill ${window.wf.getStatusClass(c.status)}`}>{c.status.replace('_',' ')}</div>
+                      <div className="small-muted mt-1">{window.wf.formatDate(c.date_raised)}</div>
                     </div>
+                  </div>
+                ))}
+                {claims.length === 0 && <p className="small-muted p-3 text-center">No recent activity</p>}
+              </div>
 
-                    <div id="claim-history-content" class="hidden">
-                        <p class="text-sm text-gray-500 mb-4 border-l-2 pl-3 border-indigo-400 bg-indigo-50 py-2">Data displayed here is filtered by the backend security policies. You only see claims you raised.</p>
-                        ${claimHistoryTable}
-                    </div>
+              <div className="card wf-card p-4 shadow-lg">
+                <h6 className="fw-bold mb-3 text-secondary">Actions</h6>
+                <div className="d-grid gap-3">
+                  <button className="btn btn-outline-primary fw-bold" onClick={loadClaims}><i className="bi bi-arrow-repeat me-2"></i>Refresh Data</button>
+                  <button className="btn btn-outline-secondary fw-bold" onClick={()=>{ navigator.clipboard?.writeText(window.location.href); showNotif('Link Copied','Page URL copied to clipboard.'); }}>
+                    <i className="bi bi-share me-2"></i>Share Link
+                  </button>
                 </div>
-            `;
-            
-            // Reattach form submission listener
-            document.getElementById('new-claim-form').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                
-                // Get form fields
-                const customerName = document.getElementById('customer-name').value;
-                const machineModel = document.getElementById('machine-model').value;
-                const runningHour = document.getElementById('running-hour').value;
-                const failureDate = document.getElementById('failure-date').value;
-                const failureComponent = document.getElementById('failure-component').value;
-                const failurePartNo = document.getElementById('failure-part-no').value;
-                const title = document.getElementById('claim-title').value;
-                const serial = document.getElementById('claim-serial').value;
-                const description = document.getElementById('claim-description').value;
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
-                const claimPayload = { 
-                    title: title, equipment_serial: serial, description: description,
-                    customer_name: customerName, machine_model: machineModel,
-                    running_hour: runningHour ? parseFloat(runningHour) : null,
-                    failure_date: failureDate, failure_component: failureComponent,
-                    failure_part_no: failurePartNo
-                };
+      {/* Modals are placed outside the main layout for clean rendering */}
+      <NotificationModal open={notif.open} title={notif.title} message={notif.message} onClose={hideNotif} type={notif.type} />
+      <ConfirmModal open={confirmState.open} title={confirmState.title} message={confirmState.message} onCancel={closeConfirm} onConfirm={confirmProceed} />
+      <ClaimDetailModal claim={selectedClaim} open={detailOpen} onClose={closeDetail} />
+    </div>
+  );
+}
 
-                await submitClaim(claimPayload);
-                e.target.reset();
-                switchFieldTab('history'); // Switch to history after submission
-            });
-        }
-        
-        /**
-         * Renders the SCE/Manager approval dashboards with two tabs.
-         */
-        function renderApprovalDashboard(claimsByStatus, title, targetDiv, roleId) { 
-            const pendingClaims = claimsByStatus.pending;
-            const approvedClaims = claimsByStatus.approved;
-            
-            // Pending tab needs to show approval actions (showActions = true)
-            const pendingTable = renderClaimTable(pendingClaims, true); 
-            // Approved tab does not need approval actions (showActions = false)
-            const approvedTable = renderClaimTable(approvedClaims, false); 
+/* -----------------------
+   Render App
+   ----------------------- */
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
 
-            targetDiv.innerHTML = `
-                <div id="${roleId}-dashboard-content" class="bg-white p-6 border border-gray-100 rounded-xl shadow-lg">
-                    <h2 class="text-3xl font-bold text-indigo-700 mb-6">${title}</h2>
-
-                    <div class="border-b border-gray-200 mb-6">
-                        <nav class="-mb-px flex space-x-8" aria-label="Tabs">
-                            <button data-tab-name="pending" onclick="switchApprovalTab('${roleId}', 'pending')"
-                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
-                                Claims Pending Approval (${pendingClaims.length})
-                            </button>
-                            <button data-tab-name="approved" onclick="switchApprovalTab('${roleId}', 'approved')"
-                                class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
-                                History (Approved/Rejected) (${approvedClaims.length})
-                            </button>
-                        </nav>
-                    </div>
-
-                    <p class="text-sm text-gray-500 mb-4 border-l-2 pl-3 border-indigo-400 bg-indigo-50 py-2">Click any row to view full details and take action where applicable.</p>
-
-                    <div id="${roleId}-pending-content" class="tab-content">
-                        ${pendingClaims.length > 0 ? pendingTable : '<p class="text-gray-500">No claims currently pending your approval.</p>'}
-                    </div>
-
-                    <div id="${roleId}-approved-content" class="tab-content hidden">
-                        ${approvedClaims.length > 0 ? approvedTable : '<p class="text-gray-500">No claims have been approved or rejected yet.</p>'}
-                    </div>
-                </div>
-            `;
-            
-            // Set initial tab state to 'pending'
-            window.switchApprovalTab(roleId, 'pending');
-        }
-        
-        // MODIFIED: Switched from card grid to expandable table
-        function renderAdminDashboard(claims) {
-            const tableHtml = renderClaimTable(claims, false, true); // false = no approval actions, true = is Admin view
-            adminDashboard.innerHTML = `
-                <div class="bg-white p-6 border border-gray-100 rounded-xl shadow-lg">
-                    <h2 class="text-3xl font-bold text-red-700 mb-6">Admin Master View (All Claims: ${claims.length})</h2>
-                    <p class="text-sm text-gray-500 mb-4 border-l-2 pl-3 border-red-400 bg-red-50 py-2">As **Admin**, you bypass all RLS filters and see all claims in the database. Click any row for details and actions.</p>
-                    ${claims.length > 0 ? tableHtml : '<p class="text-gray-500">No claims found in the database.</p>'}
-                </div>
-            `;
-        }
-
-        // --- Main Controller ---
-
-        function switchDashboard(role) {
-            // Hide all
-            fieldDashboard.classList.add('hidden');
-            sceDashboard.classList.add('hidden');
-            managerDashboard.classList.add('hidden');
-            adminDashboard.classList.add('hidden');
-
-            currentRole = role;
-            currentApprovalTab = 'pending'; // Reset approval tab state on role switch
-
-            // Show current one
-            if (role === 'field') {
-                fieldDashboard.classList.remove('hidden');
-            } else if (role === 'sce') {
-                sceDashboard.classList.remove('hidden');
-            } else if (role === 'manager') {
-                managerDashboard.classList.remove('hidden');
-            } else if (role === 'admin') { 
-                adminDashboard.classList.remove('hidden');
-            }
-            
-            loadDashboard();
-        }
-
-        async function loadDashboard() {
-            if (!currentUser) return;
-
-            loadingDiv.classList.remove('hidden');
-            
-            // This is the call that is filtered by RLS on the Supabase side
-            const claims = await fetchClaims();
-            
-            loadingDiv.classList.add('hidden');
-
-            if (currentRole === 'field') {
-                renderFieldDashboard(claims);
-            } else if (currentRole === 'sce') {
-                // Filtering Logic for SCE:
-                // Needs to see claims needing their action (Submitted) 
-                // AND claims they have already acted on (SCE_Approved/SCE_Rejected)
-                // AND claims that went past them to the manager (Manager_Approved/Manager_Rejected)
-                const pendingClaims = claims.filter(c => c.status === 'Submitted');
-                const approvedClaims = claims.filter(c => 
-                    c.status === 'SCE_Approved' || 
-                    c.status === 'SCE_Rejected' ||
-                    c.status === 'Manager_Approved' || 
-                    c.status === 'Manager_Rejected'
-                );
-                renderApprovalDashboard({ pending: pendingClaims, approved: approvedClaims }, 'SCE Approval Dashboard', sceDashboard, 'sce');
-            } else if (currentRole === 'manager') {
-                // Filtering Logic for Manager
-                // The Manager should see claims needing their action (SCE_Approved) 
-                // AND claims they have already acted on (Manager_Approved/Manager_Rejected).
-                const pendingClaims = claims.filter(c => c.status === 'SCE_Approved');
-                const approvedClaims = claims.filter(c => c.status === 'Manager_Approved' || c.status === 'Manager_Rejected');
-                renderApprovalDashboard({ pending: pendingClaims, approved: approvedClaims }, 'Manager Approval Dashboard', managerDashboard, 'manager');
-            } else if (currentRole === 'admin') {
-                renderAdminDashboard(claims);
-            }
-        }
-        
-        function refreshDashboardFromPayload(newProfileData) {
-            const newRole = newProfileData.role;
-            const newName = newProfileData.email;
-            
-            if (currentUser.role === newRole) {
-                console.log(`Role is already ${newRole}. No change needed from Realtime payload.`);
-                return;
-            }
-
-            // 1. Update global state
-            currentUser.role = newRole;
-            currentUser.name = newName;
-            currentRole = newRole;
-
-            // 2. Update UI header
-            userInfo.textContent = `User: ${currentUser.name} (Role: ${currentUser.role})`;
-            
-            // 3. Update role selector state
-            roleSelect.value = currentRole;
-            roleSelect.disabled = (currentRole !== 'admin');
-            roleSelect.title = (currentRole !== 'admin') ? `Access restricted to ${currentRole} view.` : `Admin can view all roles.`;
-
-            // 4. Switch dashboard view and reload data
-            switchDashboard(currentRole);
-            showModal("Role Updated", `Your role has been updated to **${newRole}**. The dashboard has been refreshed.`);
-        }
-        
-        function startRoleListener(userId) {
-            if (profileListener) {
-                supabaseClient.removeChannel(profileListener);
-            }
-            
-            profileListener = supabaseClient
-                .channel('roles_channel')
-                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'user_profiles' }, async (payload) => {
-                    if (currentUser && payload.new.id === userId) {
-                         console.log("User role update detected via real-time payload:", payload.new.role);
-                         refreshDashboardFromPayload(payload.new);
-                    }
-                })
-                .subscribe();
-        }
-
-        function stopRoleListener() {
-            if (profileListener) {
-                supabaseClient.removeChannel(profileListener);
-                profileListener = null;
-            }
-        }
-
-        async function updateUI(session) {
-            if (session) {
-                startRoleListener(session.user.id);
-                
-                authContainer.classList.add('hidden');
-                contentArea.classList.remove('hidden');
-                authControls.classList.remove('hidden');
-                
-                const { role, name } = await fetchUserRole(session.user.id);
-                
-                currentUser = { id: session.user.id, name: name, role: role };
-                
-                userInfo.textContent = `User: ${currentUser.name} (Role: ${currentUser.role})`;
-                
-                roleSelect.value = currentUser.role;
-                currentRole = currentUser.role;
-                
-                roleSelect.disabled = (currentUser.role !== 'admin');
-                if (currentUser.role !== 'admin') {
-                    roleSelect.title = `Access restricted to ${currentUser.role} view.`;
-                } else {
-                     roleSelect.title = `Admin can view all roles.`;
-                }
-                
-                switchDashboard(currentRole);
-
-            } else {
-                stopRoleListener(); 
-                currentUser = null;
-                currentRole = 'field'; 
-                authContainer.classList.remove('hidden');
-                contentArea.classList.add('hidden');
-                authControls.classList.add('hidden');
-                
-                authMessage.classList.add('hidden');
-                authEmail.value = '';
-                authPassword.value = '';
-            }
-        }
-
-        // --- Event Delegation for Table Row Click (The Fix) ---
-        document.addEventListener('click', function(e) {
-            // Find the closest ancestor element that is a TR with the 'claim-summary-row' class
-            let targetRow = e.target.closest('.claim-summary-row');
-            
-            if (targetRow) {
-                // Get the TR immediately following the summary row, which is the details row
-                const detailsRow = targetRow.nextElementSibling;
-                // Find the icon within the clicked row to rotate it
-                const icon = targetRow.querySelector('svg'); 
-
-                if (detailsRow && detailsRow.tagName === 'TR') {
-                    // Perform the toggle logic
-                    if (detailsRow.classList.contains('hidden')) {
-                        detailsRow.classList.remove('hidden');
-                        if (icon) icon.classList.add('rotate-90');
-                    } else {
-                        detailsRow.classList.add('hidden');
-                        if (icon) icon.classList.remove('rotate-90');
-                    }
-                }
-            }
-        });
-        
-        // --- Initialization ---
-        
-        signInBtn.addEventListener('click', handleSignIn);
-        logoutBtn.addEventListener('click', handleSignOut);
-
-        roleSelect.addEventListener('change', (e) => {
-            if (currentUser && currentUser.role === 'admin') {
-                switchDashboard(e.target.value);
-            } else {
-                e.target.value = currentUser.role;
-            }
-        });
-        
-        if (isConfigured) {
-            // 1. Initial Auth check and setup the auth listener
-            supabaseClient.auth.onAuthStateChange((event, session) => {
-                updateUI(session);
-            });
-            
-            // 2. Real-time listener: loads the dashboard on any claims data change
-            supabaseClient
-                .channel('claims_channel')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'claims' }, (payload) => {
-                    if (currentUser) {
-                         loadDashboard();
-                    }
-                })
-                .subscribe();
-        } 
-    </script>
 </body>
 </html>
