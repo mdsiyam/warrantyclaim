@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>CE — Warranty Approval System</title>
 
+  <link rel="icon" type="image/x-icon" href="https://images.seeklogo.com/logo-png/34/1/aci-group-logo-png_seeklogo-342185.png">
+
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -180,7 +182,7 @@ function Spinner() {
 /* -----------------------
    Navbar
    ----------------------- */
-function AppNavbar({ user, roleView, onRoleChange, onLogout, isAdmin }) {
+function AppNavbar({ user, roleView, onRoleChange, onLogout, isAdmin, onChangePassword }) {
   return (
     <nav className="navbar navbar-expand-lg mb-4 p-3 shadow-lg" style={{background: 'var(--wf-gradient)'}}>
       <div className="container-fluid">
@@ -189,7 +191,7 @@ function AppNavbar({ user, roleView, onRoleChange, onLogout, isAdmin }) {
             <i className="bi bi-shield-lock-fill fs-1"></i>
           </div>
           <div>
-            <div className="text-white fw-bolder fs-2">ACI Motors Ltd (Construction Equipment)</div>
+            <div className="text-white fw-bolder fs-2">Construction Equipment</div>
             <div className="small text-white">Warranty Approval System</div>
           </div>
         </div>
@@ -211,6 +213,15 @@ function AppNavbar({ user, roleView, onRoleChange, onLogout, isAdmin }) {
                 <option value="manager">Manager</option>
                 <option value="admin">Admin</option>
               </select>
+              {/* START OF USER'S REQUEST FIX */}
+              <button 
+                className="btn btn-outline-light btn-sm fw-bold" // Removed d-none d-md-inline to make it visible on all screens
+                onClick={onChangePassword}
+              >
+                <i className="bi bi-key"></i>
+                <span className="d-none d-md-inline ms-1">Change Password</span> {/* Changed d-lg-inline to d-md-inline to show text on md+ devices */}
+              </button>
+              {/* END OF USER'S REQUEST FIX */}
               <button className="btn btn-outline-light btn-sm fw-bold" onClick={onLogout}>
                 <i className="bi bi-box-arrow-right"></i>
                 <span className="d-none d-md-inline ms-1">Logout</span>
@@ -342,6 +353,115 @@ function ConfirmModal({ open, title, message, onCancel, onConfirm }) {
     </div>
   );
 }
+
+/* -----------------------
+   Change Password Modal
+   ----------------------- */
+function ChangePasswordModal({ open, onClose, showNotif }) {
+  const ref = useRef();
+  const [loading, setLoading] = useState(false);
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    const bs = bootstrap.Modal.getOrCreateInstance(ref.current);
+    const modalElement = ref.current;
+    modalElement.addEventListener('hidden.bs.modal', onClose);
+    open ? bs.show() : bs.hide();
+    
+    // Cleanup on hide/close
+    if(!open) {
+        setPassword('');
+        setConfirmPassword('');
+        setError(null);
+    }
+    
+    return () => modalElement.removeEventListener('hidden.bs.modal', onClose);
+  }, [open, onClose]);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError(null);
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await window.supabaseClient.auth.updateUser({ password });
+      
+      if (error) throw error;
+
+      // Close the modal and show success notification
+      const bs = bootstrap.Modal.getInstance(ref.current);
+      if (bs) bs.hide();
+      showNotif('Password Updated', 'Your password has been changed successfully. You may need to sign in again.', 'success');
+
+    } catch (err) {
+      setError(err.message || 'Failed to update password.');
+      console.error("Password update error:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="modal fade" ref={ref} tabIndex="-1">
+      <div className="modal-dialog modal-sm modal-dialog-centered">
+        <div className="modal-content wf-card shadow-lg">
+          <div className="modal-header border-bottom">
+            <h5 className="modal-title fw-bold"><i className="bi bi-key me-2"></i>Change Password</h5>
+            <button className="btn-close" onClick={onClose}></button>
+          </div>
+          <form onSubmit={handleSubmit}>
+            <div className="modal-body p-4">
+              {error && <div className="alert alert-danger py-2 small fw-bold">{error}</div>}
+              
+              <div className="mb-3">
+                <label className="form-label small fw-bold">New Password</label>
+                <input 
+                  type="password" 
+                  className="form-control" 
+                  value={password} 
+                  onChange={(e) => setPassword(e.target.value)} 
+                  required 
+                  minLength="6"
+                  placeholder="New Password"
+                />
+              </div>
+              <div className="mb-2">
+                <label className="form-label small fw-bold">Confirm Password</label>
+                <input 
+                  type="password" 
+                  className="form-control" 
+                  value={confirmPassword} 
+                  onChange={(e) => setConfirmPassword(e.target.value)} 
+                  required
+                  placeholder="Confirm New Password"
+                />
+              </div>
+              <p className="small-muted mt-3 mb-0">Note: Changing your password may require you to sign in again.</p>
+            </div>
+            <div className="modal-footer border-0">
+              <button type="button" className="btn btn-outline-secondary fw-bold" onClick={onClose} disabled={loading}>Cancel</button>
+              <button type="submit" className="btn btn-wf-primary fw-bold" disabled={loading || password.length < 6}>
+                {loading ? <span className="spinner-border spinner-border-sm me-2"></span> : <i className="bi bi-save me-2"></i>} Update
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 /* -----------------------
    Claim Detail Modal
@@ -832,6 +952,7 @@ function App() {
   const [confirmState, setConfirmState] = useState({open:false, title:'', message:'', cb:null});
   const [selectedClaim, setSelectedClaim] = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false); // ADDED: New state for password modal
 
   useEffect(()=> {
     // initial session check
@@ -927,11 +1048,22 @@ function App() {
   // Claim detail open/close handlers
   function openDetail(claim) { setSelectedClaim(claim); setDetailOpen(true); }
   function closeDetail() { setSelectedClaim(null); setDetailOpen(false); } // This is called by the 'hidden.bs.modal' event listener now
+  
+  // Password modal handlers
+  function openPasswordModal() { setPasswordModalOpen(true); }
+  function closePasswordModal() { setPasswordModalOpen(false); } 
 
   // render main
   return (
     <div className="container" style={{maxWidth:1200}}>
-      <AppNavbar user={userProfile} roleView={roleView} onRoleChange={handleRoleChange} onLogout={signOut} isAdmin={isAdmin}/>
+      <AppNavbar 
+        user={userProfile} 
+        roleView={roleView} 
+        onRoleChange={handleRoleChange} 
+        onLogout={signOut} 
+        isAdmin={isAdmin}
+        onChangePassword={openPasswordModal} // PASSED HANDLER TO NAVBAR
+      />
       {!session || !userProfile ? (
         <div className="mt-5">
           <AuthForm onSignIn={signIn} message={authMsg} />
@@ -999,6 +1131,7 @@ function App() {
       <NotificationModal open={notif.open} title={notif.title} message={notif.message} onClose={hideNotif} type={notif.type} />
       <ConfirmModal open={confirmState.open} title={confirmState.title} message={confirmState.message} onCancel={closeConfirm} onConfirm={confirmProceed} />
       <ClaimDetailModal claim={selectedClaim} open={detailOpen} onClose={closeDetail} />
+      <ChangePasswordModal open={passwordModalOpen} onClose={closePasswordModal} showNotif={showNotif} />
     </div>
   );
 }
