@@ -5,8 +5,6 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>CE — Warranty Approval System</title>
 
-  <link rel="icon" type="image/x-icon" href="https://images.seeklogo.com/logo-png/34/1/aci-group-logo-png_seeklogo-342185.png">
-
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -20,20 +18,63 @@
   <style>
     /* Custom Styling for Modern Look */
     :root {
-      --wf-primary: #4f46e5; /* Indigo */
-      --wf-primary-dark: #3730a3; /* Darker Indigo */
-      --wf-gradient: linear-gradient(90deg, #4f46e5, #06b6d4); /* Indigo to Cyan */
+      /* REFRESHED: Professional Teal/Emerald Palette */
+      --wf-primary: #14b8a6; /* Emerald 500 */
+      --wf-primary-dark: #0f766e; /* Emerald 700 */
+      --wf-gradient: linear-gradient(90deg, #38bdf8, #14b8a6); /* Sky Blue to Emerald */
     }
-    body { font-family: 'Inter', sans-serif; background: #f1f5f9; }
+
+    /* -------------------
+       MESH BACKGROUND STYLES (PURE CSS)
+       ------------------- */
+    #mesh-background {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1; 
+        opacity: 0.9; 
+        /* The core gradient mesh style using multiple radial gradients */
+        background: 
+            /* Soft Teal Spot (Top-Left) */
+            radial-gradient(circle at 15% 25%, rgba(20, 184, 166, 0.4) 0%, rgba(255, 255, 255, 0) 50%), 
+            /* Soft Sky Blue Spot (Bottom-Right) */
+            radial-gradient(circle at 85% 75%, rgba(56, 189, 248, 0.4) 0%, rgba(255, 255, 255, 0) 50%), 
+            /* Subtle Golden Spot (Center-Right) */
+            radial-gradient(circle at 60% 50%, rgba(255, 237, 213, 0.4) 0%, rgba(255, 255, 255, 0) 50%); 
+        background-color: #f0f9ff; /* Very light blue base */
+    }
+    /* -------------------
+       END MESH STYLES
+       ------------------- */
+
+    body { 
+        font-family: 'Inter', sans-serif; 
+        /* Base color is overridden by mesh background-color, but good to keep a default */
+        background-color: #f0f9ff; 
+        min-height: 100vh;
+    }
     
-    /* Enhanced Card Style */
+    /* Enhanced Card Style with Frosted Glass (RETAINED) */
     .wf-card { 
         border-radius: 16px; 
-        box-shadow: 0 10px 40px rgba(16,24,40,0.08); 
-        background: #fff; 
-        border: 1px solid #e2e8f0; 
+        /* Frosted Glass Effect */
+        background: rgba(255, 255, 255, 0.4); 
+        backdrop-filter: blur(15px); 
+        -webkit-backdrop-filter: blur(15px); 
+        /* End Frosted Glass Effect */
+        box-shadow: 0 10px 40px rgba(16,24,40,0.1); 
+        border: 1px solid rgba(255, 255, 255, 0.3); 
     }
-    
+
+    /* Override for Modal and other necessary elements to be fully opaque */
+    .modal-content.wf-card, .modal-header, .modal-body, .modal-footer {
+        background: #ffffff !important; 
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
+
     /* Custom Primary Button */
     .btn-wf-primary {
       background-color: var(--wf-primary);
@@ -48,7 +89,8 @@
       background-color: var(--wf-primary-dark);
       color: white;
       transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+      /* Updated box-shadow color */
+      box-shadow: 0 4px 12px rgba(20, 184, 166, 0.4); 
     }
     .btn-wf-primary:active {
       background-color: var(--wf-primary-dark);
@@ -67,7 +109,8 @@
     }
     .form-control:focus, .form-select:focus { 
       border-color: var(--wf-primary); 
-      box-shadow: 0 0 0 0.25rem rgba(79, 70, 229, 0.25); 
+      /* Updated box-shadow color */
+      box-shadow: 0 0 0 0.25rem rgba(20, 184, 166, 0.25); 
     }
 
     /* Status Pill */
@@ -81,25 +124,45 @@
     }
     .mono { font-family: ui-monospace, monospace; font-size:0.9rem; }
 
-    /* Navbar styling */
+    /* Navbar styling: STICKY & FROSTED GLASS */
     .navbar {
-      background: var(--wf-gradient) !important;
+      /* 1. Frosted Glass/Semi-transparent White */
+      background: rgba(255, 255, 255, 0.9) !important; /* Semi-transparent white */
+      backdrop-filter: blur(15px) !important; 
+      -webkit-backdrop-filter: blur(15px) !important;
+      
+      /* 2. Sticky Header */
+      position: sticky;
+      top: 0;
+      z-index: 1050; /* Ensure it stays above modals and other content */
+
+      /* Other styles */
       border-radius: 0 0 20px 20px !important;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 20px rgba(16,24,40,0.1) !important; 
+      border-bottom: 1px solid rgba(20, 184, 166, 0.2); /* Subtle bottom border */
     }
+    /* Ensure text inside the navbar is visible on the light background */
+    .navbar .text-white {
+        color: var(--wf-primary-dark) !important;
+    }
+    .navbar .btn-outline-light {
+        color: var(--wf-primary-dark) !important;
+        border-color: var(--wf-primary) !important;
+    }
+    .navbar .btn-outline-light:hover {
+        background-color: var(--wf-primary) !important;
+        color: white !important;
+    }
+    /* END Navbar styling */
     .navbar .form-select-sm {
       border-radius: 8px;
     }
-
-    /* Modal Styling */
-    .modal-content {
-      border-radius: 16px;
-    }
-
   </style>
 
 </head>
-<body><div id="root"></div>
+<body>
+<div id="mesh-background"></div>
+<div id="root"></div>
 
       <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
@@ -184,9 +247,12 @@ function Spinner() {
    ----------------------- */
 function AppNavbar({ user, roleView, onRoleChange, onLogout, isAdmin, onChangePassword }) {
   return (
-    <nav className="navbar navbar-expand-lg mb-4 p-3 shadow-lg" style={{background: 'var(--wf-gradient)'}}>
-      <div className="container-fluid">
+    // Removed mb-4 class since the container will handle top spacing
+    <nav className="navbar navbar-expand-lg p-3 shadow-lg"> 
+      {/* Added max-width to the fluid container to align content with main layout */}
+      <div className="container-fluid" style={{maxWidth:1200}}>
         <div className="d-flex align-items-center gap-3">
+          {/* text-white class is now overridden by CSS for visibility */}
           <div className="text-white">
             <i className="bi bi-shield-lock-fill fs-1"></i>
           </div>
@@ -198,6 +264,7 @@ function AppNavbar({ user, roleView, onRoleChange, onLogout, isAdmin, onChangePa
         <div className="d-flex align-items-center ms-auto gap-3">
           {user && (
             <>
+              {/* text-white class is now overridden by CSS for visibility */}
               <div className="text-white small me-2 d-none d-md-block">
                 <i className="bi bi-person-circle me-1"></i> {user.name || user.email || user.id.slice(0,8)}
               </div>
@@ -213,15 +280,13 @@ function AppNavbar({ user, roleView, onRoleChange, onLogout, isAdmin, onChangePa
                 <option value="manager">Manager</option>
                 <option value="admin">Admin</option>
               </select>
-              {/* START OF USER'S REQUEST FIX */}
               <button 
-                className="btn btn-outline-light btn-sm fw-bold" // Removed d-none d-md-inline to make it visible on all screens
+                className="btn btn-outline-light btn-sm fw-bold d-none d-md-inline" 
                 onClick={onChangePassword}
               >
                 <i className="bi bi-key"></i>
-                <span className="d-none d-md-inline ms-1">Change Password</span> {/* Changed d-lg-inline to d-md-inline to show text on md+ devices */}
+                <span className="d-none d-lg-inline ms-1">Change Password</span>
               </button>
-              {/* END OF USER'S REQUEST FIX */}
               <button className="btn btn-outline-light btn-sm fw-bold" onClick={onLogout}>
                 <i className="bi bi-box-arrow-right"></i>
                 <span className="d-none d-md-inline ms-1">Logout</span>
@@ -253,10 +318,12 @@ function AuthForm({ onSignIn, message }) {
     }
   }
   return (
-    <div className="d-flex justify-content-center align-items-center" style={{minHeight:'80vh'}}>
-      <div className="card wf-card shadow-xl" style={{maxWidth:600, width:'100%'}}>
+    <div className="d-flex justify-content-center align-items-center" style={{minHeight:'60vh'}}>
+      {/* UPDATED: Increased maxWidth for the login container */}
+      <div className="card wf-card shadow-xl" style={{maxWidth:800, width:'100%'}}>
         <div className="row g-0">
-          <div className="col-md-6 d-none d-md-flex align-items-center justify-content-center p-4" style={{background:'#f8fafc', borderTopLeftRadius:16, borderBottomLeftRadius:16}}>
+          {/* UPDATED: Auth sidebar color to match new theme */}
+          <div className="col-md-6 d-none d-md-flex align-items-center justify-content-center p-4" style={{background:'#e0f2f7', borderTopLeftRadius:16, borderBottomLeftRadius:16}}>
             <div className="text-center p-3">
               <i className="bi bi-gear-fill" style={{fontSize:'4rem', color:'var(--wf-primary)'}}></i>
               <h4 className="mt-3 fw-bold" style={{color:'var(--wf-primary-dark)'}}>Construction Equipment</h4>
@@ -357,6 +424,9 @@ function ConfirmModal({ open, title, message, onCancel, onConfirm }) {
 /* -----------------------
    Change Password Modal
    ----------------------- */
+/* -----------------------
+   Change Password Modal
+   ----------------------- */
 function ChangePasswordModal({ open, onClose, showNotif }) {
   const ref = useRef();
   const [loading, setLoading] = useState(false);
@@ -364,22 +434,41 @@ function ChangePasswordModal({ open, onClose, showNotif }) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState(null);
 
+  // Use a ref to store the latest onClose function, allowing the stable effect to call it.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  
+  // FIX 1: Set up event listener and local state cleanup ONCE on mount.
   useEffect(() => {
     if (!ref.current) return;
-    const bs = bootstrap.Modal.getOrCreateInstance(ref.current);
     const modalElement = ref.current;
-    modalElement.addEventListener('hidden.bs.modal', onClose);
-    open ? bs.show() : bs.hide();
     
-    // Cleanup on hide/close
-    if(!open) {
+    // Stable handler called when Bootstrap confirms the modal is fully hidden (UI-driven close).
+    const handleHidden = () => {
+        // Correct timing for state cleanup (Bug 2 Fix)
         setPassword('');
         setConfirmPassword('');
         setError(null);
-    }
+        
+        // Call the parent's handler to update the parent state (Bug 1 Fix)
+        onCloseRef.current(); 
+    };
+
+    // Attach listener only on mount/unmount (Bug 1 Fix)
+    modalElement.addEventListener('hidden.bs.modal', handleHidden);
     
-    return () => modalElement.removeEventListener('hidden.bs.modal', onClose);
-  }, [open, onClose]);
+    // Cleanup on unmount
+    return () => {
+        modalElement.removeEventListener('hidden.bs.modal', handleHidden);
+    };
+  }, []); // Empty dependency array: runs once on mount.
+
+  // FIX 2: Control visibility based on the 'open' prop (Separation of concerns).
+  useEffect(() => {
+    if (!ref.current) return;
+    const bs = bootstrap.Modal.getOrCreateInstance(ref.current);
+    open ? bs.show() : bs.hide();
+  }, [open]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -402,6 +491,9 @@ function ChangePasswordModal({ open, onClose, showNotif }) {
       // Close the modal and show success notification
       const bs = bootstrap.Modal.getInstance(ref.current);
       if (bs) bs.hide();
+      
+      // Note: bs.hide() will trigger the 'hidden.bs.modal' event, which calls handleHidden.
+      // handleHidden clears the form state and calls onClose().
       showNotif('Password Updated', 'Your password has been changed successfully. You may need to sign in again.', 'success');
 
     } catch (err) {
@@ -418,7 +510,7 @@ function ChangePasswordModal({ open, onClose, showNotif }) {
         <div className="modal-content wf-card shadow-lg">
           <div className="modal-header border-bottom">
             <h5 className="modal-title fw-bold"><i className="bi bi-key me-2"></i>Change Password</h5>
-            <button className="btn-close" onClick={onClose}></button>
+            <button className="btn-close" onClick={onClose} type="button"></button> {/* Added type="button" for clarity */}
           </div>
           <form onSubmit={handleSubmit}>
             <div className="modal-body p-4">
@@ -553,6 +645,7 @@ function ClaimDetailModal({ claim, open, onClose }) {
             
             <h6 className="fw-bold mt-4 mb-3 border-bottom pb-2">Approval Flow</h6>
             <div className="row">
+                {/* Note: Internal cards use bg-light, which is fine and doesn't get the backdrop-filter */}
                 <div className="col-md-6 mb-3">
                     <div className="card h-100 bg-light border-0 shadow-sm p-3">
                         <div className="small-muted fw-bold mb-2">SCE Review</div>
@@ -664,7 +757,7 @@ function FieldDashboard({ currentUser, claims, onRefresh, onOpenDetail }) {
         {/* FIX: Conditionally show content based on React state */}
         <div className={`tab-pane fade ${activeTab === 'new' ? 'show active' : ''}`}>
           <form onSubmit={handleSubmit} className="row g-4">
-            <h6 className="fw-bold text-secondary">Customer & Equipment Details</h6>
+            <h6 className="fw-bold text-secondary border-bottom pb-2">Customer & Equipment Details</h6>
             <div className="col-md-6">
               <label className="form-label small fw-bold">Customer Name</label>
               <input name="customer_name" className="form-control" required />
@@ -686,7 +779,7 @@ function FieldDashboard({ currentUser, claims, onRefresh, onOpenDetail }) {
               <input name="failure_date" type="date" className="form-control" />
             </div>
 
-            <h6 className="fw-bold text-secondary mt-4">Failure & Part Information</h6>
+            <h6 className="fw-bold text-secondary mt-4 border-bottom pb-2">Failure & Part Information</h6>
             <div className="col-md-6">
               <label className="form-label small fw-bold">Failure Component</label>
               <input name="failure_component" className="form-control" />
@@ -696,7 +789,7 @@ function FieldDashboard({ currentUser, claims, onRefresh, onOpenDetail }) {
               <input name="failure_part_no" className="form-control" />
             </div>
 
-            <h6 className="fw-bold text-secondary mt-4">Claim Summary & Description</h6>
+            <h6 className="fw-bold text-secondary mt-4 border-bottom pb-2">Claim Summary & Description</h6>
             <div className="col-12">
               <label className="form-label small fw-bold">Summary Title</label>
               <input name="title" className="form-control" placeholder="E.g., Engine failure due to oil leak" required />
@@ -720,7 +813,7 @@ function FieldDashboard({ currentUser, claims, onRefresh, onOpenDetail }) {
         {/* FIX: Conditionally show content based on React state */}
         <div className={`tab-pane fade ${activeTab === 'history' ? 'show active' : ''}`}>
           <div className="table-responsive">
-            <table className="table table-hover align-middle">
+            <table className="table table-hover table-sm align-middle">
               <thead className="table-light">
                 <tr><th>ID</th><th>Customer</th><th>Title</th><th>Status</th><th>Raised</th><th></th></tr>
               </thead>
@@ -789,7 +882,8 @@ function ApprovalDashboard({ role, currentUser, claims, onRefresh, onOpenDetail,
         <li className="nav-item"><button className={`nav-link fw-bold ${tab==='pending'?'active bg-primary text-white':'text-dark'}`} onClick={()=>setTab('pending')}>Pending ({pending.length})</button></li>
         <li className="nav-item ms-2">
             <button className={`nav-link fw-bold ${tab==='history'?'active bg-primary text-white':'text-dark'}`} onClick={()=>setTab('history')}>
-                {role === 'manager' ? `All Claims (${allClaims.length})` : `History (${history.length})`}
+                {/* UPDATED LOGIC: SCE now also shows "All Claims" */}
+                {(role === 'manager' || role === 'sce') ? `All Claims (${allClaims.length})` : `History (${history.length})`}
             </button>
         </li>
       </ul>
@@ -798,7 +892,7 @@ function ApprovalDashboard({ role, currentUser, claims, onRefresh, onOpenDetail,
         <>
           {pending.length === 0 && <p className="small-muted p-4 text-center">🎉 All clear! No pending claims requiring your attention.</p>}
           {pending.map(c => (
-            <div key={c.id} className="card mb-3 shadow-lg border-start border-5 border-warning rounded-4">
+            <div key={c.id} className="card mb-3 shadow-lg border-start border-5 border-warning rounded-4 wf-card"> {/* Added wf-card class to approval items */}
               <div className="card-body">
                 <div className="d-flex justify-content-between align-items-start">
                   <div>
@@ -833,9 +927,10 @@ function ApprovalDashboard({ role, currentUser, claims, onRefresh, onOpenDetail,
 
       {tab === 'history' && (
         <div className="list-group">
-        {role === 'manager' ? (
+        {/* UPDATED LOGIC: SCE (role==='sce') now also uses the table view of allClaims */}
+        {(role === 'manager' || role === 'sce') ? (
              <div className="table-responsive">
-                <table className="table table-hover align-middle">
+                <table className="table table-hover table-sm align-middle">
                     <thead className="table-light">
                         <tr><th>ID</th><th>Customer</th><th>Title</th><th>Status</th><th>Raised</th><th></th></tr>
                     </thead>
@@ -909,7 +1004,7 @@ function AdminDashboard({ currentUser, claims, onRefresh, onOpenDetail, openConf
       </div>
 
       <div className="table-responsive">
-        <table className="table table-hover align-middle">
+        <table className="table table-hover table-sm align-middle">
           <thead className="table-light">
             <tr><th>ID</th><th>Customer</th><th>Title</th><th>Raised By</th><th>Status</th><th>Actions</th></tr>
           </thead>
@@ -1055,7 +1150,7 @@ function App() {
 
   // render main
   return (
-    <div className="container" style={{maxWidth:1200}}>
+    <>
       <AppNavbar 
         user={userProfile} 
         roleView={roleView} 
@@ -1064,6 +1159,8 @@ function App() {
         isAdmin={isAdmin}
         onChangePassword={openPasswordModal} // PASSED HANDLER TO NAVBAR
       />
+      {/* Moved container outside AppNavbar and added top padding for sticky header clearance */}
+      <div className="container" style={{maxWidth:1200, paddingTop: '40px'}}>
       {!session || !userProfile ? (
         <div className="mt-5">
           <AuthForm onSignIn={signIn} message={authMsg} />
@@ -1133,6 +1230,7 @@ function App() {
       <ClaimDetailModal claim={selectedClaim} open={detailOpen} onClose={closeDetail} />
       <ChangePasswordModal open={passwordModalOpen} onClose={closePasswordModal} showNotif={showNotif} />
     </div>
+    </>
   );
 }
 
