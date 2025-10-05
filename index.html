@@ -220,14 +220,72 @@
       const { data, error } = await supabaseClient.from('claims').select('*').order('date_raised',{ascending:false});
       if(error) throw error; return data||[];
     }
-    async function submitClaim(payload){
-      // Ensure date_raised is set, and user_id is retrieved from session if available
-      const session = await supabaseClient.auth.getSession();
-      const userId = session.data.session?.user.id || 'anonymous';
+    
+    // --- START OF FILE UPLOAD/CLAIM SUBMISSION UPDATE (MODIFIED for DIRECT UPLOAD) ---
+    async function submitClaim(payload, file) {
+        let finalFilePath = null;
+        let newClaimId = null;
 
-      const { data, error } = await supabaseClient.from('claims').insert({...payload, user_id: userId, date_raised: new Date().toISOString(), status:'Submitted'}).select();
-      if(error) throw error; return data[0];
+        // 1. Insert Claim Data into the database to get the Claim ID
+        const { data: claimData, error: insertError } = await supabaseClient.from('claims').insert({
+            ...payload,
+            date_raised: new Date().toISOString(),
+            status: 'Submitted',
+            // Set to empty string '' to satisfy NOT NULL constraint
+            document_url: '' 
+        }).select('id').single();
+
+        if (insertError) {
+            throw insertError;
+        }
+
+        newClaimId = claimData.id;
+
+        // 2. Direct Upload the file to the final path if file is present
+        if (file) {
+            const fileExtension = file.name.split('.').pop();
+            // Define the final path: [user_id]/[claim_id].[extension]
+            finalFilePath = `${payload.user_id}/${newClaimId}.${fileExtension}`;
+
+            // Direct Upload to final path (REPLACES UPLOAD TO TEMP + MOVE)
+            const { error: uploadError } = await supabaseClient.storage
+                .from('claim-documents')
+                .upload(finalFilePath, file, {
+                    cacheControl: '3600',
+                    upsert: false // New upload
+                });
+
+            if (uploadError) {
+                // Log and continue. The claim is submitted, but the document failed.
+                console.error("Document upload failed after claim submission. Check RLS and bucket policy:", uploadError);
+                // The claim remains in the DB with document_url: ''
+            } else {
+                // 3. Get the public URL for the final path and update the claim row
+                const { data: urlData } = supabaseClient.storage
+                    .from('claim-documents')
+                    .getPublicUrl(finalFilePath);
+
+                // Check for URL data presence
+                if (urlData && urlData.publicUrl) {
+                    const { error: updateError } = await supabaseClient.from('claims')
+                        .update({ document_url: urlData.publicUrl })
+                        .eq('id', newClaimId);
+
+                    if (updateError) {
+                        console.error("Failed to update claim with document URL:", updateError);
+                    }
+                } else {
+                     // Log failure if URL data is missing (e.g., bucket not public)
+                    console.error("getPublicUrl failed or returned no URL for path:", finalFilePath, urlData);
+                }
+            }
+        }
+
+        // Return the inserted claim data
+        return claimData;
     }
+    // --- END OF FILE UPLOAD/CLAIM SUBMISSION UPDATE (MODIFIED for DIRECT UPLOAD) ---
+
     async function updateClaimApproval(id,action,notes,role,currentUser){
       let update={};
       const approvalDate = new Date().toISOString();
@@ -247,12 +305,12 @@
       if(error) throw error; return true;
     }
     async function fetchUserRole(uid){
-  // ADD 'name' to the select query
-  const { data, error } = await supabaseClient.from('user_profiles').select('role,email,name').eq('id',uid).single(); 
-  // Return the fetched name, falling back to email if name is null, then 'Unknown'
-  if(error) return {role:'field', name:'Unknown'}; 
-  return {role:data.role, name:data.name || data.email}; 
-}
+      // ADD 'name' to the select query
+      const { data, error } = await supabaseClient.from('user_profiles').select('role,email,name').eq('id',uid).single(); 
+      // Return the fetched name, falling back to email if name is null, then 'Unknown'
+      if(error) return {role:'field', name:'Unknown'}; 
+      return {role:data.role, name:data.name || data.email}; 
+    }
     
     // NEW FUNCTIONALITY: Admin user creation
     async function addNewUser(email, password, role) {
@@ -786,6 +844,11 @@ function ClaimDetailModal({ claim, open, onClose }) {
   }
   // --- END OF FIX ---
 
+  // --- START OF NEW FILE DOWNLOAD SECTION ---
+  // FIX: document_url can be an empty string '', so check for length > 0
+  const documentAvailable = claim.document_url && claim.document_url.length > 0;
+  // --- END OF NEW FILE DOWNLOAD SECTION ---
+
   return (
     <div className="modal fade" ref={ref} tabIndex="-1">
       <div className="modal-dialog modal-lg modal-dialog-scrollable">
@@ -799,10 +862,25 @@ function ClaimDetailModal({ claim, open, onClose }) {
             <div className={`p-3 mb-4 rounded-3 text-center ${isApproved ? 'bg-success-subtle text-success' : isRejected ? 'bg-danger-subtle text-danger' : 'bg-warning-subtle text-warning'}`}>
                 Current Status: <span className="fw-bold fs-6">{claim.status.replace('_',' ')}</span>
             </div>
+            
+            {/* --- START OF NEW FILE DOWNLOAD SECTION IN MODAL --- */}
+            <h6 className="fw-bold mb-3 border-bottom pb-2">Supporting Documents</h6>
+            <div className="mb-4">
+                {documentAvailable ? (
+                    <a href={claim.document_url} target="_blank" rel="noopener noreferrer" className="btn btn-outline-primary fw-bold">
+                        <i className="bi bi-file-earmark-arrow-down-fill me-2"></i> Download Supporting Document (.docx)
+                    </a>
+                ) : (
+                    <p className="small-muted">No supporting document uploaded for this claim.</p>
+                )}
+            </div>
+            {/* --- END OF NEW FILE DOWNLOAD SECTION IN MODAL --- */}
+
 
             <h6 className="fw-bold mb-3 border-bottom pb-2">Equipment & Failure Information</h6>
             <dl className="row small">
               <dt className="col-sm-3 fw-medium">Claim ID</dt><dd className="col-sm-9 mono">{claim.id}</dd>
+              <dt className="col-sm-3 fw-medium">Raised By</dt><dd className="col-sm-9">{claim.raised_by || claim.user_id?.slice(0,8)}</dd> {/* ADDED RAISED BY */}
               <dt className="col-sm-3 fw-medium">Customer</dt><dd className="col-sm-9">{claim.customer_name || '-'}</dd>
               <dt className="col-sm-3 fw-medium">Model / Serial</dt><dd className="col-sm-9">{claim.machine_model || '-'} / {claim.equipment_serial || '-'}</dd>
               <dt className="col-sm-3 fw-medium">Failure Component</dt><dd className="col-sm-9">{claim.failure_component || '-'} (Part: {claim.failure_part_no || '-'})</dd>
@@ -863,22 +941,43 @@ function FieldDashboard({ currentUser, claims, onRefresh, onOpenDetail }) {
     setMsg(null);
     const fd = new FormData(e.target);
 
+    // --- START OF FILE HANDLING ---
+    const fileInput = e.target.supporting_doc;
+    const file = fileInput.files[0];
+    
+    if (file) {
+        const fileType = file.name.split('.').pop().toLowerCase();
+        if (fileType !== 'docx') {
+            setMsg({ type: 'error', text: 'Invalid file format. Only .docx files are supported.' });
+            setSubmitting(false);
+            return;
+        }
+    }
+    // --- END OF FILE HANDLING ---
+
+    // --- START OF REQUIRED FIELD PARSING (REMOVED || NULL CHECKS) ---
     const payload = {
       title: fd.get('title'),
       description: fd.get('description'),
       customer_name: fd.get('customer_name'),
       machine_model: fd.get('machine_model'),
       equipment_serial: fd.get('equipment_serial'),
-      running_hour: parseInt(fd.get('running_hour')) || null,
-      failure_date: fd.get('failure_date') || null,
+      // Now required and parsed as integer
+      running_hour: parseInt(fd.get('running_hour')),
+      // Now required
+      failure_date: fd.get('failure_date'),
       failure_component: fd.get('failure_component'),
       failure_part_no: fd.get('failure_part_no'),
-      // Also add who raised the claim explicitly for display purposes
-      raised_by: currentUser.email
+      raised_by: currentUser.email,
+      user_id: currentUser.id
     };
+    // --- END OF REQUIRED FIELD PARSING ---
 
     try {
-      await window.wf.submitClaim(payload);
+      // --- UPDATED: Pass the file to submitClaim ---
+      await window.wf.submitClaim(payload, file); 
+      // --- END UPDATED ---
+
       setMsg({ type: 'success', text: 'Claim submitted successfully! Check the History tab.' });
       e.target.reset();
       await onRefresh();
@@ -939,22 +1038,22 @@ function FieldDashboard({ currentUser, claims, onRefresh, onOpenDetail }) {
               <input name="equipment_serial" className="form-control" required />
             </div>
             <div className="col-md-4">
-              <label className="form-label small fw-bold">Running Hour (Optional)</label>
-              <input name="running_hour" type="number" className="form-control" />
+              <label className="form-label small fw-bold">Running Hour</label>
+              <input name="running_hour" type="number" className="form-control" required />
             </div>
             <div className="col-md-4">
               <label className="form-label small fw-bold">Failure Date</label>
-              <input name="failure_date" type="date" className="form-control" />
+              <input name="failure_date" type="date" className="form-control" required />
             </div>
 
             <h6 className="fw-bold text-secondary mt-4 border-bottom pb-2">Failure & Part Information</h6>
             <div className="col-md-6">
               <label className="form-label small fw-bold">Failure Component</label>
-              <input name="failure_component" className="form-control" />
+              <input name="failure_component" className="form-control" required />
             </div>
             <div className="col-md-6">
               <label className="form-label small fw-bold">Part No.</label>
-              <input name="failure_part_no" className="form-control" />
+              <input name="failure_part_no" className="form-control" required />
             </div>
 
             <h6 className="fw-bold text-secondary mt-4 border-bottom pb-2">Claim Summary & Description</h6>
@@ -966,6 +1065,22 @@ function FieldDashboard({ currentUser, claims, onRefresh, onOpenDetail }) {
               <label className="form-label small fw-bold">Detailed description of failure</label>
               <textarea name="description" rows="4" className="form-control" required></textarea>
             </div>
+            
+            {/* --- START OF NEW FILE UPLOAD INPUT --- */}
+            <div className="col-12">
+              <label className="form-label small fw-bold">Supporting Document (Optional)</label>
+              <input 
+                name="supporting_doc" 
+                type="file" 
+                className="form-control" 
+                accept=".docx" 
+                aria-describedby="fileHelp"
+                required
+                // This input remains OPTIONAL
+              />
+              <div id="fileHelp" className="form-text small-muted">Max file size 5MB. Only **.docx** format is supported. The file will be renamed to the Claim ID upon successful submission.</div>
+            </div>
+            {/* --- END OF NEW FILE UPLOAD INPUT --- */}
 
             <div className="col-12 d-flex gap-3 pt-3">
               <button className="btn btn-wf-primary btn-lg" disabled={submitting}>
@@ -1228,7 +1343,7 @@ function App() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   // NEW STATE: State for the Add User Modal
-  const [addUserModalOpen, setAddUserModalOpen] = useState(false); 
+  const [addUserModalOpen, setAddUserModal] = useState(false); 
 
 
   useEffect(()=> {
@@ -1331,8 +1446,8 @@ function App() {
   function closePasswordModal() { setPasswordModalOpen(false); } 
 
   // NEW HANDLERS: Add User Modal
-  function openAddUserModal() { setAddUserModalOpen(true); }
-  function closeAddUserModal() { setAddUserModalOpen(false); }
+  function openAddUserModal() { setAddUserModal(true); }
+  function closeAddUserModal() { setAddUserModal(false); }
 
   // render main
   return (
