@@ -157,6 +157,26 @@
     .navbar .form-select-sm {
       border-radius: 8px;
     }
+
+    /* Custom Tab Styles for Field Dashboard AND Approval Dashboard (Now used everywhere) */
+    .nav-pills .nav-link.wf-tab-active {
+        background-color: var(--wf-primary);
+        color: white;
+        border: 1px solid var(--wf-primary);
+    }
+    .nav-pills .nav-link.wf-tab-inactive {
+        background-color: transparent;
+        color: var(--wf-primary-dark);
+        border: 1px solid var(--wf-primary);
+    }
+    .nav-pills .nav-link.wf-tab-inactive:hover {
+        background-color: rgba(20, 184, 166, 0.1); /* Light teal hover */
+    }
+    /* Ensure the default 'active' class used by Bootstrap for pills doesn't conflict */
+    .nav-pills .nav-link.active {
+        background-color: var(--wf-primary); /* Use primary color if it somehow gets the default 'active' class */
+        color: white;
+    }
   </style>
 
 </head>
@@ -172,7 +192,14 @@
     // NOTE: This uses a publicly available demo key and URL.
     const SUPABASE_URL = 'https://vebjjlfjlhobatqqwlfq.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZlYmpqbGZqbGhvYmF0cXF3bGZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkxMzY5NTMsImV4cCI6MjA3NDcxMjk1M30.Ks1ZHFAELRJvh3ppjNdVFPrhiwv7lTYg3mwiLgmSw60';
-    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    // FIX 2: Added auth configuration to prevent session refresh on tab change
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: {
+            autoRefreshToken: false, // Prevents re-authentication logic on browser tab focus
+            detectSessionInUrl: false
+        }
+    });
     window.supabaseClient = supabaseClient;
 
     function formatDate(iso){ if(!iso) return '-'; return new Date(iso).toLocaleString('en-US',{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); }
@@ -220,11 +247,43 @@
       if(error) throw error; return true;
     }
     async function fetchUserRole(uid){
-      const { data, error } = await supabaseClient.from('user_profiles').select('role,email').eq('id',uid).single();
-      if(error) return {role:'field', name:'Unknown'}; return {role:data.role, name:data.email};
+  // ADD 'name' to the select query
+  const { data, error } = await supabaseClient.from('user_profiles').select('role,email,name').eq('id',uid).single(); 
+  // Return the fetched name, falling back to email if name is null, then 'Unknown'
+  if(error) return {role:'field', name:'Unknown'}; 
+  return {role:data.role, name:data.name || data.email}; 
+}
+    
+    // NEW FUNCTIONALITY: Admin user creation
+    async function addNewUser(email, password, role) {
+      // 1. Create user in Supabase Auth
+      // Note: This requires the user running this function (the Admin) to have the necessary Row Level Security (RLS) policies and/or a Service Role Key, 
+      // but in this client-side demo, we rely on the Admin role having RLS enabled for 'insert' on 'user_profiles' and the default Supabase Auth RLS.
+      const { data: authData, error: authError } = await supabaseClient.auth.signUp({
+        email,
+        password,
+      });
+      if (authError) throw authError;
+      
+      const userId = authData.user.id;
+
+      // 2. Insert profile with role into user_profiles table
+      const { error: profileError } = await supabaseClient.from('user_profiles').insert({
+        id: userId,
+        email: email, // Store email for easier retrieval
+        role: role
+      });
+
+      if (profileError) {
+        // In a real app, you might try to delete the auth user here if the profile insert failed
+        throw profileError;
+      }
+      
+      return true;
     }
 
-    window.wf = { fetchClaims, submitClaim, updateClaimApproval, handleAdminAction, fetchUserRole, formatDate, getStatusClass };
+
+    window.wf = { fetchClaims, submitClaim, updateClaimApproval, handleAdminAction, fetchUserRole, formatDate, getStatusClass, addNewUser };
   </script>
 
 
@@ -424,9 +483,6 @@ function ConfirmModal({ open, title, message, onCancel, onConfirm }) {
 /* -----------------------
    Change Password Modal
    ----------------------- */
-/* -----------------------
-   Change Password Modal
-   ----------------------- */
 function ChangePasswordModal({ open, onClose, showNotif }) {
   const ref = useRef();
   const [loading, setLoading] = useState(false);
@@ -434,36 +490,27 @@ function ChangePasswordModal({ open, onClose, showNotif }) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState(null);
 
-  // Use a ref to store the latest onClose function, allowing the stable effect to call it.
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   
-  // FIX 1: Set up event listener and local state cleanup ONCE on mount.
   useEffect(() => {
     if (!ref.current) return;
     const modalElement = ref.current;
     
-    // Stable handler called when Bootstrap confirms the modal is fully hidden (UI-driven close).
     const handleHidden = () => {
-        // Correct timing for state cleanup (Bug 2 Fix)
         setPassword('');
         setConfirmPassword('');
         setError(null);
-        
-        // Call the parent's handler to update the parent state (Bug 1 Fix)
         onCloseRef.current(); 
     };
 
-    // Attach listener only on mount/unmount (Bug 1 Fix)
     modalElement.addEventListener('hidden.bs.modal', handleHidden);
     
-    // Cleanup on unmount
     return () => {
         modalElement.removeEventListener('hidden.bs.modal', handleHidden);
     };
-  }, []); // Empty dependency array: runs once on mount.
+  }, []); 
 
-  // FIX 2: Control visibility based on the 'open' prop (Separation of concerns).
   useEffect(() => {
     if (!ref.current) return;
     const bs = bootstrap.Modal.getOrCreateInstance(ref.current);
@@ -488,12 +535,9 @@ function ChangePasswordModal({ open, onClose, showNotif }) {
       
       if (error) throw error;
 
-      // Close the modal and show success notification
       const bs = bootstrap.Modal.getInstance(ref.current);
       if (bs) bs.hide();
       
-      // Note: bs.hide() will trigger the 'hidden.bs.modal' event, which calls handleHidden.
-      // handleHidden clears the form state and calls onClose().
       showNotif('Password Updated', 'Your password has been changed successfully. You may need to sign in again.', 'success');
 
     } catch (err) {
@@ -510,7 +554,7 @@ function ChangePasswordModal({ open, onClose, showNotif }) {
         <div className="modal-content wf-card shadow-lg">
           <div className="modal-header border-bottom">
             <h5 className="modal-title fw-bold"><i className="bi bi-key me-2"></i>Change Password</h5>
-            <button className="btn-close" onClick={onClose} type="button"></button> {/* Added type="button" for clarity */}
+            <button className="btn-close" onClick={onClose} type="button"></button>
           </div>
           <form onSubmit={handleSubmit}>
             <div className="modal-body p-4">
@@ -543,8 +587,134 @@ function ChangePasswordModal({ open, onClose, showNotif }) {
             </div>
             <div className="modal-footer border-0">
               <button type="button" className="btn btn-outline-secondary fw-bold" onClick={onClose} disabled={loading}>Cancel</button>
-              <button type="submit" className="btn btn-wf-primary fw-bold" disabled={loading || password.length < 6}>
+              <button type="submit" style={{background:'var(--wf-primary-dark)'}} className="btn text-white fw-bold" disabled={loading || password.length < 6}>
                 {loading ? <span className="spinner-border spinner-border-sm me-2"></span> : <i className="bi bi-save me-2"></i>} Update
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* -----------------------
+   Add User Modal (NEW COMPONENT)
+   ----------------------- */
+function AddUserModal({ open, onClose, showNotif }) {
+  const ref = useRef();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  // Hook for Bootstrap modal visibility and cleanup
+  useEffect(() => {
+    if (!ref.current) return;
+    const bs = bootstrap.Modal.getOrCreateInstance(ref.current);
+    
+    // Cleanup function when modal is hidden
+    const handleHidden = () => {
+        setError(null);
+        onCloseRef.current(); 
+    };
+
+    const modalElement = ref.current;
+    modalElement.addEventListener('hidden.bs.modal', handleHidden);
+
+    open ? bs.show() : bs.hide();
+    
+    return () => {
+        modalElement.removeEventListener('hidden.bs.modal', handleHidden);
+    };
+  }, [open]);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    const fd = new FormData(e.target);
+    const email = fd.get('email');
+    const password = fd.get('password');
+    const role = fd.get('role');
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      await window.wf.addNewUser(email, password, role);
+
+      const bs = bootstrap.Modal.getInstance(ref.current);
+      if (bs) bs.hide();
+      
+      showNotif('User Created', `User ${email} created successfully with role ${role.toUpperCase()}. An email confirmation has been sent.`, 'success');
+      e.target.reset();
+
+    } catch (err) {
+      setError(err.message || 'Failed to create user.');
+      console.error("User creation error:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="modal fade" ref={ref} tabIndex="-1">
+      <div className="modal-dialog modal-md modal-dialog-centered">
+        <div className="modal-content wf-card shadow-lg">
+          <div className="modal-header border-bottom">
+            <h5 className="modal-title fw-bold" style={{color:'var(--wf-primary-dark)'}}><i className="bi bi-person-plus-fill me-2"></i>Add New User</h5>
+            <button className="btn-close" onClick={onClose} type="button"></button>
+          </div>
+          <form onSubmit={handleSubmit}>
+            <div className="modal-body p-4">
+              {error && <div className="alert alert-danger py-2 small fw-bold">{error}</div>}
+              
+              <div className="mb-3">
+                <label className="form-label small fw-bold">Email (Username)</label>
+                <input 
+                  type="email" 
+                  name="email"
+                  className="form-control" 
+                  required 
+                  placeholder="user@company.com"
+                />
+              </div>
+              
+              <div className="row mb-3">
+                <div className="col-md-6">
+                  <label className="form-label small fw-bold">Temporary Password</label>
+                  <input 
+                    type="password" 
+                    name="password"
+                    className="form-control" 
+                    required 
+                    minLength="6"
+                    placeholder="Min 6 characters"
+                  />
+                </div>
+                <div className="col-md-6">
+                  <label className="form-label small fw-bold">Role</label>
+                  <select name="role" className="form-select" required>
+                    <option value="field">Field (Default)</option>
+                    <option value="sce">SCE</option>
+                    <option value="manager">Manager</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+              </div>
+
+              <p className="small-muted mt-3 mb-0">Note: The user will receive a confirmation email. They should use the temporary password provided.</p>
+            </div>
+            <div className="modal-footer border-0">
+              <button type="button" className="btn btn-outline-secondary fw-bold" onClick={onClose} disabled={loading}>Cancel</button>
+              <button type="submit" className="btn btn-wf-primary fw-bold" disabled={loading}>
+                {loading ? <span className="spinner-border spinner-border-sm me-2"></span> : <i className="bi bi-person-plus me-2"></i>} Create User
               </button>
             </div>
           </form>
@@ -728,27 +898,25 @@ function FieldDashboard({ currentUser, claims, onRefresh, onOpenDetail }) {
   return (
     <div className="card wf-card p-4 mb-3">
       <div className="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
-        <h5 className="mb-0 text-primary"><i className="bi bi-person-badge me-2"></i>Field Dashboard</h5>
+        <h5 style={{color:'var(--wf-primary-dark)'}} className="mb-0"><i className="bi bi-person-badge me-2"></i>Field Dashboard</h5>
         <div className="small-muted">Submit new claims & view history</div>
       </div>
 
       <ul className="nav nav-pills mb-4">
-        {/* FIX: Control active class and click handler via React state */}
         <li className="nav-item me-2">
             <button 
-                className={`nav-link fw-bold ${activeTab === 'new' ? 'active bg-primary text-white' : 'text-dark'}`}
+                className={`nav-link fw-bold ${activeTab === 'new' ? 'wf-tab-active' : 'wf-tab-inactive'}`}
                 onClick={() => setActiveTab('new')}
             >
                 New Claim
             </button>
         </li>
-        {/* FIX: Control active class and click handler via React state */}
         <li className="nav-item">
             <button 
-                className={`nav-link fw-bold ${activeTab === 'history' ? 'active bg-primary text-white' : 'text-dark'}`}
+                className={`nav-link fw-bold ${activeTab === 'history' ? 'wf-tab-active' : 'wf-tab-inactive'}`}
                 onClick={() => setActiveTab('history')}
             >
-                History <span className="badge bg-light text-dark ms-2">{userClaims.length}</span>
+                History <span className={`badge ms-2 ${activeTab === 'history' ? 'bg-white text-primary' : 'bg-light text-dark'}`}>{userClaims.length}</span>
             </button>
         </li>
       </ul>
@@ -874,14 +1042,20 @@ function ApprovalDashboard({ role, currentUser, claims, onRefresh, onOpenDetail,
   return (
     <div className="card wf-card p-4 mb-3">
       <div className="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
-        <h5 className="mb-0 text-primary"><i className={`bi bi-${role==='sce'?'person-check-fill':'bank2'} me-2`}></i>{role.toUpperCase()} Approval Dashboard</h5>
+        <h5 style={{color:'var(--wf-primary-dark)'}}className="mb-0 fw-bold"><i className={`bi bi-${role==='sce'?'person-check-fill':'award-fill'} me-2`}></i>{role.toUpperCase()} Approval Dashboard</h5>
         <div className="small-muted">Review pending claims</div>
       </div>
 
       <ul className="nav nav-pills mb-4">
-        <li className="nav-item"><button className={`nav-link fw-bold ${tab==='pending'?'active bg-primary text-white':'text-dark'}`} onClick={()=>setTab('pending')}>Pending ({pending.length})</button></li>
+        <li className="nav-item">
+            {/* FIX 1: Apply wf-tab-active/inactive classes for consistent styling */}
+            <button className={`nav-link fw-bold ${tab==='pending'?'wf-tab-active':'wf-tab-inactive'}`} onClick={()=>setTab('pending')}>
+                Pending ({pending.length})
+            </button>
+        </li>
         <li className="nav-item ms-2">
-            <button className={`nav-link fw-bold ${tab==='history'?'active bg-primary text-white':'text-dark'}`} onClick={()=>setTab('history')}>
+            {/* FIX 1: Apply wf-tab-active/inactive classes for consistent styling */}
+            <button className={`nav-link fw-bold ${tab==='history'?'wf-tab-active':'wf-tab-inactive'}`} onClick={()=>setTab('history')}>
                 {/* UPDATED LOGIC: SCE now also shows "All Claims" */}
                 {(role === 'manager' || role === 'sce') ? `All Claims (${allClaims.length})` : `History (${history.length})`}
             </button>
@@ -972,7 +1146,7 @@ function ApprovalDashboard({ role, currentUser, claims, onRefresh, onOpenDetail,
 /* -----------------------
    Admin Dashboard
    ----------------------- */
-function AdminDashboard({ currentUser, claims, onRefresh, onOpenDetail, openConfirm, showNotif }) {
+function AdminDashboard({ currentUser, claims, onRefresh, onOpenDetail, openConfirm, showNotif, openAddUserModal }) {
   
   function confirmToggle(c) {
     const toClose = !(c.status === 'Admin_Closed' || c.status === 'Closed');
@@ -999,8 +1173,11 @@ function AdminDashboard({ currentUser, claims, onRefresh, onOpenDetail, openConf
   return (
     <div className="card wf-card p-4 mb-3">
       <div className="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
-        <h5 className="mb-0 text-primary"><i className="bi bi-person-gear me-2"></i>Admin Master View</h5>
-        <div className="small-muted">All claims in the system</div>
+        <h5 style={{color:'var(--wf-primary-dark)'}} className="mb-0 fw-bold"><i className="bi bi-person-fill-gear me-2"></i>Admin Master View</h5>
+        {/* NEW BUTTON: Button to open the Add User Modal */}
+        <button className="btn btn-wf-primary fw-bold" onClick={openAddUserModal}>
+          <i className="bi bi-person-plus-fill me-2"></i>Add User
+        </button>
       </div>
 
       <div className="table-responsive">
@@ -1018,7 +1195,7 @@ function AdminDashboard({ currentUser, claims, onRefresh, onOpenDetail, openConf
                 <td><span className={`status-pill ${window.wf.getStatusClass(c.status)}`}>{c.status.replace('_',' ')}</span></td>
                 <td>
                   <div className="d-flex gap-2">
-                    <button className="btn btn-sm btn-outline-primary" onClick={()=>onOpenDetail(c)}>Details</button>
+                    <button className="btn btn-outline-success fw-bold" onClick={()=>onOpenDetail(c)}>Details</button>
                     <button className="btn btn-sm btn-outline-danger fw-bold" onClick={()=>confirmToggle(c)}>{(c.status==='Admin_Closed' || c.status==='Closed') ? 'Reopen' : 'Close'}</button>
                   </div>
                 </td>
@@ -1047,7 +1224,10 @@ function App() {
   const [confirmState, setConfirmState] = useState({open:false, title:'', message:'', cb:null});
   const [selectedClaim, setSelectedClaim] = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [passwordModalOpen, setPasswordModalOpen] = useState(false); // ADDED: New state for password modal
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  // NEW STATE: State for the Add User Modal
+  const [addUserModalOpen, setAddUserModalOpen] = useState(false); 
+
 
   useEffect(()=> {
     // initial session check
@@ -1148,6 +1328,10 @@ function App() {
   function openPasswordModal() { setPasswordModalOpen(true); }
   function closePasswordModal() { setPasswordModalOpen(false); } 
 
+  // NEW HANDLERS: Add User Modal
+  function openAddUserModal() { setAddUserModalOpen(true); }
+  function closeAddUserModal() { setAddUserModalOpen(false); }
+
   // render main
   return (
     <>
@@ -1157,7 +1341,7 @@ function App() {
         onRoleChange={handleRoleChange} 
         onLogout={signOut} 
         isAdmin={isAdmin}
-        onChangePassword={openPasswordModal} // PASSED HANDLER TO NAVBAR
+        onChangePassword={openPasswordModal}
       />
       {/* Moved container outside AppNavbar and added top padding for sticky header clearance */}
       <div className="container" style={{maxWidth:1200, paddingTop: '40px'}}>
@@ -1173,7 +1357,15 @@ function App() {
                 {roleView === 'field' && <FieldDashboard currentUser={userProfile} claims={claims} onRefresh={loadClaims} onOpenDetail={openDetail} />}
                 {roleView === 'sce' && <ApprovalDashboard role="sce" currentUser={userProfile} claims={claims} onRefresh={loadClaims} onOpenDetail={openDetail} showNotif={showNotif} />}
                 {roleView === 'manager' && <ApprovalDashboard role="manager" currentUser={userProfile} claims={claims} onRefresh={loadClaims} onOpenDetail={openDetail} showNotif={showNotif} />}
-                {roleView === 'admin' && <AdminDashboard currentUser={userProfile} claims={claims} onRefresh={loadClaims} onOpenDetail={openDetail} openConfirm={openConfirm} showNotif={showNotif} />}
+                {roleView === 'admin' && <AdminDashboard 
+                    currentUser={userProfile} 
+                    claims={claims} 
+                    onRefresh={loadClaims} 
+                    onOpenDetail={openDetail} 
+                    openConfirm={openConfirm} 
+                    showNotif={showNotif}
+                    openAddUserModal={openAddUserModal} // PASSED HANDLER
+                />}
                 {loading && <Spinner />}
               </div>
             </div>
@@ -1184,7 +1376,7 @@ function App() {
                 <div className="d-flex justify-content-between align-items-center mb-3 p-3 rounded-2 bg-light">
                   <div>
                     <div className="small-muted fw-bold">Total Claims</div>
-                    <div className="h4 fw-bolder text-primary mt-1">{claims.length}</div>
+                    <div style={{color:'var(--wf-primary-dark)'}} className="h4 fw-bolder mt-1">{claims.length}</div>
                   </div>
                   <div className="text-end">
                     <div className="small-muted fw-bold">Pending Approval</div>
@@ -1213,7 +1405,7 @@ function App() {
               <div className="card wf-card p-4 shadow-lg">
                 <h6 className="fw-bold mb-3 text-secondary">Actions</h6>
                 <div className="d-grid gap-3">
-                  <button className="btn btn-outline-primary fw-bold" onClick={loadClaims}><i className="bi bi-arrow-repeat me-2"></i>Refresh Data</button>
+                  <button className="btn btn-outline-success fw-bold" onClick={loadClaims}><i className="bi bi-arrow-repeat me-2"></i>Refresh Data</button>
                   <button className="btn btn-outline-secondary fw-bold" onClick={()=>{ navigator.clipboard?.writeText(window.location.href); showNotif('Link Copied','Page URL copied to clipboard.'); }}>
                     <i className="bi bi-share me-2"></i>Share Link
                   </button>
@@ -1229,6 +1421,8 @@ function App() {
       <ConfirmModal open={confirmState.open} title={confirmState.title} message={confirmState.message} onCancel={closeConfirm} onConfirm={confirmProceed} />
       <ClaimDetailModal claim={selectedClaim} open={detailOpen} onClose={closeDetail} />
       <ChangePasswordModal open={passwordModalOpen} onClose={closePasswordModal} showNotif={showNotif} />
+      {/* NEW MODAL: Add User Modal */}
+      <AddUserModal open={addUserModalOpen} onClose={closeAddUserModal} showNotif={showNotif} /> 
     </div>
     </>
   );
