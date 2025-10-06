@@ -359,12 +359,14 @@ function Spinner() {
 /* -----------------------
    Navbar
    ----------------------- */
+// AppNavbar component
+
 function AppNavbar({ user, roleView, onRoleChange, onLogout, isAdmin, onChangePassword }) {
   return (
     <nav className="navbar navbar-expand-lg p-3 shadow-lg"> 
       <div className="container-fluid" style={{maxWidth:1200}}>
+        {/* Brand/Logo Area */}
         <div className="d-flex align-items-center gap-3">
-          {/* Replaced generic text-white with wf-navbar-text for targeted override */}
           <div className="wf-navbar-text">
             <img style={{width:'50px'}} src="https://vectorseek.com/wp-content/uploads/2023/07/Aci-Group-Logo-Vector.svg--300x300.png" alt="LOGO"/>
           </div>
@@ -373,38 +375,77 @@ function AppNavbar({ user, roleView, onRoleChange, onLogout, isAdmin, onChangePa
             <div className="small wf-navbar-text">Warranty Approval System</div>
           </div>
         </div>
-        <div className="d-flex align-items-center ms-auto gap-3">
-          {user && (
-            <>
-              {/* Replaced generic text-white with wf-navbar-text for targeted override */}
-              <div className="wf-navbar-text fw-bold me-2 d-none d-md-block">
-                <i className="bi bi-person-circle me-1"></i> {user.name || user.email || user.id.slice(0,8)}
-              </div>
-              {/*<select 
-                className="form-select form-select-sm bg-white text-dark shadow-sm border-0" 
-                style={{width:150}} 
-                value={roleView} 
-                onChange={(e)=>onRoleChange(e.target.value)} 
-                disabled={!isAdmin}
-              >
-                <option value="field">Field</option>
-                <option value="sce">SCE</option>
-                <option value="manager">Manager</option>
-                <option value="admin">Admin</option>
-              </select>*/}
-              <button 
-                className="btn btn-outline-light btn-bg fw-bold d-none d-md-inline" 
-                onClick={onChangePassword}
-              >
-                <i className="bi bi-key"></i>
-                <span className="d-none d-lg-inline ms-1">Change Password</span>
-              </button>
-              <button className="btn btn-outline-light btn-bg fw-bold" onClick={onLogout}>
-                <i className="bi bi-box-arrow-right"></i>
-                <span className="d-none d-md-inline ms-1">Logout</span>
-              </button>
-            </>
-          )}
+        
+        {/* 1. TOGGLER BUTTON (MOBILE VIEW ONLY) */}
+        {user && (
+            <button 
+                className="navbar-toggler border-0 shadow-sm p-1 me-1" 
+                type="button" 
+                data-bs-toggle="collapse" 
+                data-bs-target="#navbarNavDropdown" 
+                aria-controls="navbarNavDropdown" 
+                aria-expanded="false" 
+                aria-label="Toggle navigation"
+            >
+                {/* Use the person icon for the toggler */}
+                <i className="bi bi-menu-button-fill fs-4" style={{color:'var(--wf-primary-dark)'}}></i> 
+            </button>
+        )}
+
+        {/* 2. COLLAPSIBLE MENU CONTENT */}
+        <div className="collapse navbar-collapse" id="navbarNavDropdown">
+            {user && (
+                <ul className="navbar-nav ms-auto align-items-lg-center">
+                    {/* User Info (Visible on all screens, but moved to the top of the mobile menu) */}
+                    <li className="nav-item d-lg-none py-2 border-bottom mb-2">
+                         <span className="wf-navbar-text">
+                            <i className="bi bi-person-circle me-2"></i> {user.name || user.email || user.id.slice(0,8)}
+                        </span>
+                    </li>
+
+                    {/* Desktop-only User Info/Role Select Area */}
+                    <li className="nav-item d-none d-lg-block me-3">
+                         <div className="wf-navbar-text fw-bold me-2">
+                            <i className="bi bi-person-circle me-1"></i> {user.name || user.email || user.id.slice(0,8)}
+                        </div>
+                    </li>
+                    
+                    {/* Role View Selector */}
+                    {/*<li className="nav-item me-3 mb-2 mb-lg-0">
+                        <select 
+                            className="form-select form-select-sm bg-white text-dark shadow-sm border-0" 
+                            style={{width:150}} 
+                            value={roleView} 
+                            onChange={(e)=>onRoleChange(e.target.value)} 
+                            disabled={!isAdmin}
+                        >
+                            <option value="field">Field</option>
+                            <option value="sce">SCE</option>
+                            <option value="manager">Manager</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </li>*/}
+                    
+                    {/* Change Password Button */}
+                    <li className="nav-item me-2 mb-2 mb-lg-0">
+                        <button 
+                            className="btn btn-outline-light btn-bg fw-bold w-100" 
+                            onClick={onChangePassword}
+                        >
+                            <i className="bi bi-key"></i>
+                            <span className="ms-1">Change Password</span>
+                        </button>
+                    </li>
+
+                    {/* Logout Button */}
+                    <li className="nav-item">
+                        <button className="btn btn-outline-light btn-bg fw-bold w-100" onClick={onLogout}>
+                            <i className="bi bi-box-arrow-right"></i>
+                            <span className="ms-1">Logout</span>
+                        </button>
+                    </li>
+                </ul>
+            )}
         </div>
       </div>
     </nav>
