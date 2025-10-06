@@ -50,7 +50,7 @@
        ------------------- */
 
     body { 
-        font-family: 'Inter', sans-serif; 
+        font-family: 'Poppins', sans-serif; 
         /* Base color is overridden by mesh background-color, but good to keep a default */
         background-color: #f0f9ff; 
         min-height: 100vh;
@@ -371,10 +371,10 @@ function AppNavbar({ user, roleView, onRoleChange, onLogout, isAdmin, onChangePa
         <div className="d-flex align-items-center gap-3">
           {/* text-white class is now overridden by CSS for visibility */}
           <div className="text-white">
-            <i className="bi bi-shield-lock-fill fs-1"></i>
+            <img style={{width:'50px'}} src="https://vectorseek.com/wp-content/uploads/2023/07/Aci-Group-Logo-Vector.svg--300x300.png" alt="LOGO"/>
           </div>
           <div>
-            <div className="text-white fw-bolder fs-2">Construction Equipment</div>
+            <div className="text-white fw-bold fs-2">ACI Motors Ltd.</div>
             <div className="small text-white">Warranty Approval System</div>
           </div>
         </div>
