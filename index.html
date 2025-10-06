@@ -311,31 +311,31 @@
       return {role:data.role, name:data.name || data.email}; 
     }
     
-    // NEW FUNCTIONALITY: Admin user creation
-    async function addNewUser(email, password, role) {
-      // 1. Create user in Supabase Auth
-      const { data: authData, error: authError } = await supabaseClient.auth.signUp({
-        email,
-        password,
-      });
-      if (authError) throw authError;
-      
-      const userId = authData.user.id;
+    // index.html (Around line 377)
+async function addNewUser(email, password, role) {
+  // 1. Create user in Supabase Auth
+  const { data: authData, error: authError } = await supabaseClient.auth.signUp({
+    email,
+    password,
+  });
+  if (authError) throw authError;
+  
+  const userId = authData.user.id;
 
-      // 2. Insert profile with role into user_profiles table
-      const { error: profileError } = await supabaseClient.from('user_profiles').insert({
-        id: userId,
-        email: email, 
-        role: role
-      });
+  // 2. Insert profile with role into user_profiles table
+  const { error: profileError } = await supabaseClient.from('user_profiles').upsert({ // The upsert from previous fix
+    id: userId,
+    email: email, 
+    role: role
+  });
 
-      if (profileError) {
-        // In a real app, you might try to delete the auth user here if the profile insert failed
-        throw profileError;
-      }
-      
-      return true;
-    }
+  if (profileError) {
+    // In a real app, you might try to delete the auth user here if the profile insert failed
+    throw profileError;
+  }
+  
+  return true;
+}
 
 
     window.wf = { fetchClaims, submitClaim, updateClaimApproval, handleAdminAction, fetchUserRole, formatDate, getStatusClass, addNewUser };
@@ -377,10 +377,10 @@ function AppNavbar({ user, roleView, onRoleChange, onLogout, isAdmin, onChangePa
           {user && (
             <>
               {/* Replaced generic text-white with wf-navbar-text for targeted override */}
-              <div className="wf-navbar-text small me-2 d-none d-md-block">
+              <div className="wf-navbar-text fw-bold me-2 d-none d-md-block">
                 <i className="bi bi-person-circle me-1"></i> {user.name || user.email || user.id.slice(0,8)}
               </div>
-              <select 
+              {/*<select 
                 className="form-select form-select-sm bg-white text-dark shadow-sm border-0" 
                 style={{width:150}} 
                 value={roleView} 
@@ -391,15 +391,15 @@ function AppNavbar({ user, roleView, onRoleChange, onLogout, isAdmin, onChangePa
                 <option value="sce">SCE</option>
                 <option value="manager">Manager</option>
                 <option value="admin">Admin</option>
-              </select>
+              </select>*/}
               <button 
-                className="btn btn-outline-light btn-sm fw-bold d-none d-md-inline" 
+                className="btn btn-outline-light btn-bg fw-bold d-none d-md-inline" 
                 onClick={onChangePassword}
               >
                 <i className="bi bi-key"></i>
                 <span className="d-none d-lg-inline ms-1">Change Password</span>
               </button>
-              <button className="btn btn-outline-light btn-sm fw-bold" onClick={onLogout}>
+              <button className="btn btn-outline-light btn-bg fw-bold" onClick={onLogout}>
                 <i className="bi bi-box-arrow-right"></i>
                 <span className="d-none d-md-inline ms-1">Logout</span>
               </button>
@@ -842,7 +842,7 @@ function ClaimDetailModal({ claim, open, onClose }) {
             <button className="btn-close" onClick={handleHide}></button> 
           </div>
           <div className="modal-body p-4">
-            <h4 className="mb-3 text-primary">{claim.title}</h4>
+            <h4 style={{color:'var(--wf-primary-dark)'}} className="mb-3 fw-bold">{claim.title}</h4>
             <div className={`p-3 mb-4 rounded-3 text-center ${isApproved ? 'bg-success-subtle text-success' : isRejected ? 'bg-danger-subtle text-danger' : 'bg-warning-subtle text-warning'}`}>
                 Current Status: <span className="fw-bold fs-6">{claim.status.replace('_',' ')}</span>
             </div>
@@ -850,7 +850,7 @@ function ClaimDetailModal({ claim, open, onClose }) {
             <h6 className="fw-bold mb-3 border-bottom pb-2">Supporting Documents</h6>
             <div className="mb-4">
                 {documentAvailable ? (
-                    <a href={claim.document_url} target="_blank" rel="noopener noreferrer" className="btn btn-outline-primary fw-bold">
+                    <a href={claim.document_url} target="_blank" rel="noopener noreferrer" className="btn btn-outline-success fw-bold">
                         <i className="bi bi-file-earmark-arrow-down-fill me-2"></i> Download Supporting Document
                     </a>
                 ) : (
