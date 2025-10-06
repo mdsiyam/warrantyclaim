@@ -21,7 +21,7 @@
       /* REFRESHED: Professional Teal/Emerald Palette */
       --wf-primary: #14b8a6; /* Emerald 500 */
       --wf-primary-dark: #0f766e; /* Emerald 700 */
-      --wf-gradient: linear-gradient(90deg, #38bdf8, #14b8a6); /* Sky Blue to Emerald */
+      /* --wf-gradient: linear-gradient(90deg, #38bdf8, #14b8a6); REMOVED - NOT USED */
     }
 
     /* -------------------
@@ -50,13 +50,13 @@
        ------------------- */
 
     body { 
-        font-family: 'Poppins', sans-serif; 
-        /* Base color is overridden by mesh background-color, but good to keep a default */
+        /* Font family updated to Poppins/Inter fallback for better compatibility */
+        font-family: 'Inter', 'Poppins', sans-serif; 
         background-color: #f0f9ff; 
         min-height: 100vh;
     }
     
-    /* Enhanced Card Style with Frosted Glass (RETAINED) */
+    /* Enhanced Card Style with Frosted Glass */
     .wf-card { 
         border-radius: 16px; 
         /* Frosted Glass Effect */
@@ -69,7 +69,8 @@
     }
 
     /* Override for Modal and other necessary elements to be fully opaque */
-    .modal-content.wf-card, .modal-header, .modal-body, .modal-footer {
+    /* REMOVED .modal-header, .modal-body, .modal-footer from this selector, as the modal-content already handles the main background */
+    .modal-content.wf-card {
         background: #ffffff !important; 
         backdrop-filter: none !important;
         -webkit-backdrop-filter: none !important;
@@ -89,7 +90,6 @@
       background-color: var(--wf-primary-dark);
       color: white;
       transform: translateY(-1px);
-      /* Updated box-shadow color */
       box-shadow: 0 4px 12px rgba(20, 184, 166, 0.4); 
     }
     .btn-wf-primary:active {
@@ -98,7 +98,9 @@
       transform: translateY(0);
     }
     .btn-wf-primary:disabled {
-      background-color: #a5b4fc;
+      /* Adjusted to a more muted teal/gray for disabled state */
+      background-color: #a5b4fc; 
+      opacity: 0.65; /* Added opacity for better disabled look */
     }
 
     /* Input Styling */
@@ -109,7 +111,6 @@
     }
     .form-control:focus, .form-select:focus { 
       border-color: var(--wf-primary); 
-      /* Updated box-shadow color */
       box-shadow: 0 0 0 0.25rem rgba(20, 184, 166, 0.25); 
     }
 
@@ -134,15 +135,16 @@
       /* 2. Sticky Header */
       position: sticky;
       top: 0;
-      z-index: 1050; /* Ensure it stays above modals and other content */
+      z-index: 1050; 
 
       /* Other styles */
       border-radius: 0 0 20px 20px !important;
       box-shadow: 0 4px 20px rgba(16,24,40,0.1) !important; 
-      border-bottom: 1px solid rgba(20, 184, 166, 0.2); /* Subtle bottom border */
+      border-bottom: 1px solid rgba(20, 184, 166, 0.2); 
     }
     /* Ensure text inside the navbar is visible on the light background */
-    .navbar .text-white {
+    /* Simplified class to target the brand/title text */
+    .navbar .wf-navbar-text { 
         color: var(--wf-primary-dark) !important;
     }
     .navbar .btn-outline-light {
@@ -158,7 +160,7 @@
       border-radius: 8px;
     }
 
-    /* Custom Tab Styles for Field Dashboard AND Approval Dashboard (Now used everywhere) */
+    /* Custom Tab Styles */
     .nav-pills .nav-link.wf-tab-active {
         background-color: var(--wf-primary);
         color: white;
@@ -174,7 +176,7 @@
     }
     /* Ensure the default 'active' class used by Bootstrap for pills doesn't conflict */
     .nav-pills .nav-link.active {
-        background-color: var(--wf-primary); /* Use primary color if it somehow gets the default 'active' class */
+        background-color: var(--wf-primary); 
         color: white;
     }
   </style>
@@ -193,10 +195,10 @@
     const SUPABASE_URL = 'https://vebjjlfjlhobatqqwlfq.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZlYmpqbGZqbGhvYmF0cXF3bGZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkxMzY5NTMsImV4cCI6MjA3NDcxMjk1M30.Ks1ZHFAELRJvh3ppjNdVFPrhiwv7lTYg3mwiLgmSw60';
     
-    // FIX 2: Added auth configuration to prevent session refresh on tab change
+    // Auth configuration prevents session refresh on tab change
     const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         auth: {
-            autoRefreshToken: false, // Prevents re-authentication logic on browser tab focus
+            autoRefreshToken: false, 
             detectSessionInUrl: false
         }
     });
@@ -221,7 +223,7 @@
       if(error) throw error; return data||[];
     }
     
-    // --- START OF FILE UPLOAD/CLAIM SUBMISSION UPDATE (MODIFIED for DIRECT UPLOAD) ---
+    // --- FILE UPLOAD/CLAIM SUBMISSION ---
     async function submitClaim(payload, file) {
         let finalFilePath = null;
         let newClaimId = null;
@@ -247,25 +249,23 @@
             // Define the final path: [user_id]/[claim_id].[extension]
             finalFilePath = `${payload.user_id}/${newClaimId}.${fileExtension}`;
 
-            // Direct Upload to final path (REPLACES UPLOAD TO TEMP + MOVE)
+            // Direct Upload to final path 
             const { error: uploadError } = await supabaseClient.storage
                 .from('claim-documents')
                 .upload(finalFilePath, file, {
                     cacheControl: '3600',
-                    upsert: false // New upload
+                    upsert: false 
                 });
 
             if (uploadError) {
                 // Log and continue. The claim is submitted, but the document failed.
                 console.error("Document upload failed after claim submission. Check RLS and bucket policy:", uploadError);
-                // The claim remains in the DB with document_url: ''
             } else {
                 // 3. Get the public URL for the final path and update the claim row
                 const { data: urlData } = supabaseClient.storage
                     .from('claim-documents')
                     .getPublicUrl(finalFilePath);
 
-                // Check for URL data presence
                 if (urlData && urlData.publicUrl) {
                     const { error: updateError } = await supabaseClient.from('claims')
                         .update({ document_url: urlData.publicUrl })
@@ -275,7 +275,6 @@
                         console.error("Failed to update claim with document URL:", updateError);
                     }
                 } else {
-                     // Log failure if URL data is missing (e.g., bucket not public)
                     console.error("getPublicUrl failed or returned no URL for path:", finalFilePath, urlData);
                 }
             }
@@ -284,7 +283,6 @@
         // Return the inserted claim data
         return claimData;
     }
-    // --- END OF FILE UPLOAD/CLAIM SUBMISSION UPDATE (MODIFIED for DIRECT UPLOAD) ---
 
     async function updateClaimApproval(id,action,notes,role,currentUser){
       let update={};
@@ -301,11 +299,12 @@
       if(error) throw error; return true;
     }
     async function handleAdminAction(id,close){
-      const { error } = await supabaseClient.from('claims').update({status: close?'Admin_Closed':'Submitted', admin_action_date: new Date().toISOString()}).eq('id',id);
+      // Use Admin_Closed for explicit admin action, otherwise set back to Submitted
+      const newStatus = close ? 'Admin_Closed' : 'Submitted'; 
+      const { error } = await supabaseClient.from('claims').update({status: newStatus, admin_action_date: new Date().toISOString()}).eq('id',id);
       if(error) throw error; return true;
     }
     async function fetchUserRole(uid){
-      // ADD 'name' to the select query
       const { data, error } = await supabaseClient.from('user_profiles').select('role,email,name').eq('id',uid).single(); 
       // Return the fetched name, falling back to email if name is null, then 'Unknown'
       if(error) return {role:'field', name:'Unknown'}; 
@@ -315,8 +314,6 @@
     // NEW FUNCTIONALITY: Admin user creation
     async function addNewUser(email, password, role) {
       // 1. Create user in Supabase Auth
-      // Note: This requires the user running this function (the Admin) to have the necessary Row Level Security (RLS) policies and/or a Service Role Key, 
-      // but in this client-side demo, we rely on the Admin role having RLS enabled for 'insert' on 'user_profiles' and the default Supabase Auth RLS.
       const { data: authData, error: authError } = await supabaseClient.auth.signUp({
         email,
         password,
@@ -328,7 +325,7 @@
       // 2. Insert profile with role into user_profiles table
       const { error: profileError } = await supabaseClient.from('user_profiles').insert({
         id: userId,
-        email: email, // Store email for easier retrieval
+        email: email, 
         role: role
       });
 
@@ -364,25 +361,23 @@ function Spinner() {
    ----------------------- */
 function AppNavbar({ user, roleView, onRoleChange, onLogout, isAdmin, onChangePassword }) {
   return (
-    // Removed mb-4 class since the container will handle top spacing
     <nav className="navbar navbar-expand-lg p-3 shadow-lg"> 
-      {/* Added max-width to the fluid container to align content with main layout */}
       <div className="container-fluid" style={{maxWidth:1200}}>
         <div className="d-flex align-items-center gap-3">
-          {/* text-white class is now overridden by CSS for visibility */}
-          <div className="text-white">
+          {/* Replaced generic text-white with wf-navbar-text for targeted override */}
+          <div className="wf-navbar-text">
             <img style={{width:'50px'}} src="https://vectorseek.com/wp-content/uploads/2023/07/Aci-Group-Logo-Vector.svg--300x300.png" alt="LOGO"/>
           </div>
           <div>
-            <div className="text-white fw-bold fs-2">ACI Motors Ltd.</div>
-            <div className="small text-white">Warranty Approval System</div>
+            <div className="wf-navbar-text fw-bold fs-2">ACI Motors Ltd.</div>
+            <div className="small wf-navbar-text">Warranty Approval System</div>
           </div>
         </div>
         <div className="d-flex align-items-center ms-auto gap-3">
           {user && (
             <>
-              {/* text-white class is now overridden by CSS for visibility */}
-              <div className="text-white small me-2 d-none d-md-block">
+              {/* Replaced generic text-white with wf-navbar-text for targeted override */}
+              <div className="wf-navbar-text small me-2 d-none d-md-block">
                 <i className="bi bi-person-circle me-1"></i> {user.name || user.email || user.id.slice(0,8)}
               </div>
               <select 
@@ -436,7 +431,6 @@ function AuthForm({ onSignIn, message }) {
   }
   return (
     <div className="d-flex justify-content-center align-items-center" style={{minHeight:'60vh'}}>
-      {/* UPDATED: Increased maxWidth for the login container */}
       <div className="card wf-card shadow-xl" style={{maxWidth:800, width:'100%'}}>
         <div className="row g-0">
           {/* UPDATED: Auth sidebar color to match new theme */}
@@ -645,6 +639,7 @@ function ChangePasswordModal({ open, onClose, showNotif }) {
             </div>
             <div className="modal-footer border-0">
               <button type="button" className="btn btn-outline-secondary fw-bold" onClick={onClose} disabled={loading}>Cancel</button>
+              {/* Used primary dark color for update button for distinction */}
               <button type="submit" style={{background:'var(--wf-primary-dark)'}} className="btn text-white fw-bold" disabled={loading || password.length < 6}>
                 {loading ? <span className="spinner-border spinner-border-sm me-2"></span> : <i className="bi bi-save me-2"></i>} Update
               </button>
@@ -657,7 +652,7 @@ function ChangePasswordModal({ open, onClose, showNotif }) {
 }
 
 /* -----------------------
-   Add User Modal (NEW COMPONENT)
+   Add User Modal 
    ----------------------- */
 function AddUserModal({ open, onClose, showNotif }) {
   const ref = useRef();
@@ -789,13 +784,9 @@ function AddUserModal({ open, onClose, showNotif }) {
 function ClaimDetailModal({ claim, open, onClose }) {
   const ref = useRef();
 
-  // Function to call when a button is clicked to trigger Bootstrap's hide transition
   const handleHide = () => {
     const bs = bootstrap.Modal.getInstance(ref.current);
-    if (bs) {
-        // Trigger Bootstrap's hide transition, which will fire 'hidden.bs.modal'
-        bs.hide(); 
-    }
+    if (bs) bs.hide(); 
   };
 
   useEffect(() => {
@@ -803,51 +794,44 @@ function ClaimDetailModal({ claim, open, onClose }) {
     const bs = bootstrap.Modal.getOrCreateInstance(ref.current);
     const modalElement = ref.current;
 
-    // Listen for the 'hidden' event and call React's onClose only when 
-    // Bootstrap has fully removed the modal and its backdrop.
+    // Listen for the 'hidden' event and call React's onClose
     modalElement.addEventListener('hidden.bs.modal', onClose); 
 
-    // Control visibility
-    if (open) {
-      bs.show();
-    } 
-
+    if (open) bs.show();
+    
     // Cleanup function to remove event listener
     return () => {
         modalElement.removeEventListener('hidden.bs.modal', onClose);
     }
-  }, [open, onClose]); // open dependency is still needed for initial show()
+  }, [open, onClose]); 
 
   if (!claim) return null;
 
   const isApproved = claim.status.includes('Approved');
   const isRejected = claim.status.includes('Rejected');
 
-  // --- START OF FIX: Calculate correct SCE Review Status ---
+  // --- OPTIMIZATION: Simplified SCE Review Status ---
   const sceReviewStatus = 
     claim.status === 'Submitted' ? 'Submitted' : 
     claim.status === 'SCE_Rejected' ? 'SCE_Rejected' : 
-    'SCE_Approved'; // If anything else (SCE_Approved, Manager_*, Closed, Admin_Closed), it passed SCE.
+    'SCE_Approved'; 
   
-  // --- START OF FIX: Calculate correct Manager Review Status ---
-  let managerReviewStatus = 'bg-light text-dark'; // Default status for N/A
-  let managerReviewDisplay = 'N/A';
+  // --- OPTIMIZATION: Simplified Manager Review Status ---
+  let managerReviewStatus = ''; // Use empty string for N/A
 
   if (claim.status === 'SCE_Approved') {
-      // Use 'Submitted' status styling (usually warning/pending) and display 'Pending'
-      managerReviewStatus = 'Submitted'; 
-      managerReviewDisplay = 'Pending';
-  } else if (claim.status.startsWith('Manager_') || claim.status.startsWith('Closed') || claim.status.startsWith('Admin_Closed')) {
-      // Use the actual Manager outcome or Closed status
-      managerReviewStatus = claim.status;
-      managerReviewDisplay = claim.status.replace('_',' ');
+      managerReviewStatus = 'Pending';
+  } else if (claim.status.startsWith('Manager_') || claim.status.endsWith('_Closed')) {
+      managerReviewStatus = claim.status.replace('_',' ');
+  } else if (claim.status === 'Submitted' || claim.status === 'SCE_Rejected') {
+      managerReviewStatus = 'N/A';
   }
-  // --- END OF FIX ---
+  
+  const managerDisplay = managerReviewStatus === 'Pending' ? 'Pending' : managerReviewStatus.replace('_',' ') || 'N/A';
+  const managerStatusClass = managerReviewStatus === 'Pending' ? 'bg-warning text-dark' : window.wf.getStatusClass(managerReviewStatus.replace(' ','_'));
 
-  // --- START OF NEW FILE DOWNLOAD SECTION ---
-  // FIX: document_url can be an empty string '', so check for length > 0
+  // document_url can be an empty string '', so check for length > 0
   const documentAvailable = claim.document_url && claim.document_url.length > 0;
-  // --- END OF NEW FILE DOWNLOAD SECTION ---
 
   return (
     <div className="modal fade" ref={ref} tabIndex="-1">
@@ -863,24 +847,22 @@ function ClaimDetailModal({ claim, open, onClose }) {
                 Current Status: <span className="fw-bold fs-6">{claim.status.replace('_',' ')}</span>
             </div>
             
-            {/* --- START OF NEW FILE DOWNLOAD SECTION IN MODAL --- */}
             <h6 className="fw-bold mb-3 border-bottom pb-2">Supporting Documents</h6>
             <div className="mb-4">
                 {documentAvailable ? (
                     <a href={claim.document_url} target="_blank" rel="noopener noreferrer" className="btn btn-outline-primary fw-bold">
-                        <i className="bi bi-file-earmark-arrow-down-fill me-2"></i> Download Supporting Document (.docx)
+                        <i className="bi bi-file-earmark-arrow-down-fill me-2"></i> Download Supporting Document
                     </a>
                 ) : (
                     <p className="small-muted">No supporting document uploaded for this claim.</p>
                 )}
             </div>
-            {/* --- END OF NEW FILE DOWNLOAD SECTION IN MODAL --- */}
 
 
             <h6 className="fw-bold mb-3 border-bottom pb-2">Equipment & Failure Information</h6>
             <dl className="row small">
               <dt className="col-sm-3 fw-medium">Claim ID</dt><dd className="col-sm-9 mono">{claim.id}</dd>
-              <dt className="col-sm-3 fw-medium">Raised By</dt><dd className="col-sm-9">{claim.raised_by || claim.user_id?.slice(0,8)}</dd> {/* ADDED RAISED BY */}
+              <dt className="col-sm-3 fw-medium">Raised By</dt><dd className="col-sm-9">{claim.raised_by || claim.user_id?.slice(0,8)}</dd> 
               <dt className="col-sm-3 fw-medium">Customer</dt><dd className="col-sm-9">{claim.customer_name || '-'}</dd>
               <dt className="col-sm-3 fw-medium">Model / Serial</dt><dd className="col-sm-9">{claim.machine_model || '-'} / {claim.equipment_serial || '-'}</dd>
               <dt className="col-sm-3 fw-medium">Failure Component</dt><dd className="col-sm-9">{claim.failure_component || '-'} (Part: {claim.failure_part_no || '-'})</dd>
@@ -893,11 +875,9 @@ function ClaimDetailModal({ claim, open, onClose }) {
             
             <h6 className="fw-bold mt-4 mb-3 border-bottom pb-2">Approval Flow</h6>
             <div className="row">
-                {/* Note: Internal cards use bg-light, which is fine and doesn't get the backdrop-filter */}
                 <div className="col-md-6 mb-3">
                     <div className="card h-100 bg-light border-0 shadow-sm p-3">
                         <div className="small-muted fw-bold mb-2">SCE Review</div>
-                        {/* CORRECTED SCE STATUS LOGIC */}
                         <p className="mb-1 small">Status: <span className={`status-pill ${window.wf.getStatusClass(sceReviewStatus)}`}>{sceReviewStatus.replace('_',' ')}</span></p>
                         <p className="mb-1 small">Date: {window.wf.formatDate(claim.sce_approval_date) || '-'}</p>
                         <p className="mb-0 small fw-medium mt-2">Notes:</p>
@@ -907,8 +887,8 @@ function ClaimDetailModal({ claim, open, onClose }) {
                 <div className="col-md-6 mb-3">
                     <div className="card h-100 bg-light border-0 shadow-sm p-3">
                         <div className="small-muted fw-bold mb-2">Manager Review</div>
-                        {/* CORRECTED MANAGER STATUS LOGIC */}
-                        <p className="mb-1 small">Status: <span className={`status-pill ${window.wf.getStatusClass(managerReviewStatus)}`}>{managerReviewDisplay}</span></p>
+                        {/* Used the managerReviewStatus calculated above */}
+                        <p className="mb-1 small">Status: <span className={`status-pill ${managerStatusClass}`}>{managerDisplay}</span></p>
                         <p className="mb-1 small">Date: {window.wf.formatDate(claim.manager_approval_date) || '-'}</p>
                         <p className="mb-0 small fw-medium mt-2">Notes:</p>
                         <p className="small fst-italic">{claim.manager_notes || 'No notes.'}</p>
@@ -932,7 +912,6 @@ function ClaimDetailModal({ claim, open, onClose }) {
 function FieldDashboard({ currentUser, claims, onRefresh, onOpenDetail }) {
   const [msg, setMsg] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  // FIX: New state to manage active tab without relying on Bootstrap's JS for styling
   const [activeTab, setActiveTab] = useState('new'); 
 
   async function handleSubmit(e) {
@@ -941,7 +920,7 @@ function FieldDashboard({ currentUser, claims, onRefresh, onOpenDetail }) {
     setMsg(null);
     const fd = new FormData(e.target);
 
-    // --- START OF FILE HANDLING ---
+    // --- FILE HANDLING ---
     const fileInput = e.target.supporting_doc;
     const file = fileInput.files[0];
     
@@ -952,36 +931,41 @@ function FieldDashboard({ currentUser, claims, onRefresh, onOpenDetail }) {
             setSubmitting(false);
             return;
         }
+        if (file.size > 5 * 1024 * 1024) { // 5MB limit check
+            setMsg({ type: 'error', text: 'File size exceeds the 5MB limit.' });
+            setSubmitting(false);
+            return;
+        }
     }
-    // --- END OF FILE HANDLING ---
 
-    // --- START OF REQUIRED FIELD PARSING (REMOVED || NULL CHECKS) ---
+    // --- REQUIRED FIELD PARSING ---
+    const runningHourValue = fd.get('running_hour');
+    if (!runningHourValue || isNaN(parseInt(runningHourValue))) {
+        setMsg({ type: 'error', text: 'Running Hour must be a valid number.' });
+        setSubmitting(false);
+        return;
+    }
+
     const payload = {
       title: fd.get('title'),
       description: fd.get('description'),
       customer_name: fd.get('customer_name'),
       machine_model: fd.get('machine_model'),
       equipment_serial: fd.get('equipment_serial'),
-      // Now required and parsed as integer
-      running_hour: parseInt(fd.get('running_hour')),
-      // Now required
+      running_hour: parseInt(runningHourValue),
       failure_date: fd.get('failure_date'),
       failure_component: fd.get('failure_component'),
       failure_part_no: fd.get('failure_part_no'),
-      raised_by: currentUser.email,
+      raised_by: currentUser.name,
       user_id: currentUser.id
     };
-    // --- END OF REQUIRED FIELD PARSING ---
 
     try {
-      // --- UPDATED: Pass the file to submitClaim ---
       await window.wf.submitClaim(payload, file); 
-      // --- END UPDATED ---
 
       setMsg({ type: 'success', text: 'Claim submitted successfully! Check the History tab.' });
       e.target.reset();
       await onRefresh();
-      // FIX: Update React state to switch tab
       setActiveTab('history'); 
 
     } catch (err) {
@@ -1021,7 +1005,6 @@ function FieldDashboard({ currentUser, claims, onRefresh, onOpenDetail }) {
       </ul>
 
       <div className="tab-content">
-        {/* FIX: Conditionally show content based on React state */}
         <div className={`tab-pane fade ${activeTab === 'new' ? 'show active' : ''}`}>
           <form onSubmit={handleSubmit} className="row g-4">
             <h6 className="fw-bold text-secondary border-bottom pb-2">Customer & Equipment Details</h6>
@@ -1066,9 +1049,8 @@ function FieldDashboard({ currentUser, claims, onRefresh, onOpenDetail }) {
               <textarea name="description" rows="4" className="form-control" required></textarea>
             </div>
             
-            {/* --- START OF NEW FILE UPLOAD INPUT --- */}
             <div className="col-12">
-              <label className="form-label small fw-bold">Supporting Document (Optional)</label>
+              <label className="form-label small fw-bold">Supporting Document</label>
               <input 
                 name="supporting_doc" 
                 type="file" 
@@ -1076,11 +1058,9 @@ function FieldDashboard({ currentUser, claims, onRefresh, onOpenDetail }) {
                 accept=".docx" 
                 aria-describedby="fileHelp"
                 required
-                // This input remains OPTIONAL
               />
               <div id="fileHelp" className="form-text small-muted">Max file size 5MB. Only **.docx** format is supported. The file will be renamed to the Claim ID upon successful submission.</div>
             </div>
-            {/* --- END OF NEW FILE UPLOAD INPUT --- */}
 
             <div className="col-12 d-flex gap-3 pt-3">
               <button className="btn btn-wf-primary btn-lg" disabled={submitting}>
@@ -1093,7 +1073,6 @@ function FieldDashboard({ currentUser, claims, onRefresh, onOpenDetail }) {
           </form>
         </div>
 
-        {/* FIX: Conditionally show content based on React state */}
         <div className={`tab-pane fade ${activeTab === 'history' ? 'show active' : ''}`}>
           <div className="table-responsive">
             <table className="table table-hover table-sm align-middle">
@@ -1101,7 +1080,7 @@ function FieldDashboard({ currentUser, claims, onRefresh, onOpenDetail }) {
                 <tr><th>ID</th><th>Customer</th><th>Title</th><th>Raised By</th><th>Status</th><th>Raised</th><th></th></tr>
               </thead>
               <tbody>
-                {userClaims.length === 0 && <tr><td colSpan="6" className="small-muted p-4 text-center">No claims submitted by you yet.</td></tr>}
+                {userClaims.length === 0 && <tr><td colSpan="7" className="small-muted p-4 text-center">No claims submitted by you yet.</td></tr>}
                 {userClaims.map(c => (
                   <tr key={c.id} style={{cursor:'pointer'}} onClick={()=>onOpenDetail(c)} className="shadow-sm border-bottom">
                     <td className="mono small">{c.id.slice(0,8)}</td>
@@ -1132,24 +1111,25 @@ function ApprovalDashboard({ role, currentUser, claims, onRefresh, onOpenDetail,
 
   // Filter claims based on the role and current status
   const pending = claims.filter(c => (role==='sce' ? c.status === 'Submitted' : c.status === 'SCE_Approved'));
-  const history = claims.filter(c => {
-    if (role === 'sce') return c.status.startsWith('SCE_') || c.status.startsWith('Manager_') || c.status.startsWith('Closed');
-    if (role === 'manager') return c.status.startsWith('Manager_') || c.status.startsWith('Closed');
-    return false;
-  });
 
-  // Manager specific: To show all claims
+  // Use allClaims for the "All Claims" tab for both SCE and Manager
   const allClaims = claims; 
 
   async function handleAction(claimId, action) {
+    // Basic check for required notes on reject
+    if (action === 'reject' && (!notes[claimId] || notes[claimId].trim() === '')) {
+      showNotif('Validation Error', 'Notes are required for rejection.', 'error');
+      return;
+    }
+
     setProcessingId(claimId);
     try {
       await window.wf.updateClaimApproval(claimId, action, notes[claimId] || '', role, currentUser);
       await onRefresh();
-      showNotif('Success', `Claim ${claimId.slice(0,8)} successfully ${action === 'approve' ? 'Approved' : 'Rejected'}.`);
+      showNotif('Success', `Claim ${claimId.slice(0,8)} successfully ${action === 'approve' ? 'Approved' : 'Rejected'}.`, 'success');
       setNotes(prev => { delete prev[claimId]; return {...prev}; });
     } catch (err) {
-      showNotif('Error', err.message || 'Action failed');
+      showNotif('Error', err.message || 'Action failed', 'error');
     } finally {
       setProcessingId(null);
     }
@@ -1164,16 +1144,13 @@ function ApprovalDashboard({ role, currentUser, claims, onRefresh, onOpenDetail,
 
       <ul className="nav nav-pills mb-4">
         <li className="nav-item">
-            {/* FIX 1: Apply wf-tab-active/inactive classes for consistent styling */}
             <button className={`nav-link fw-bold ${tab==='pending'?'wf-tab-active':'wf-tab-inactive'}`} onClick={()=>setTab('pending')}>
                 Pending ({pending.length})
             </button>
         </li>
         <li className="nav-item ms-2">
-            {/* FIX 1: Apply wf-tab-active/inactive classes for consistent styling */}
-            <button className={`nav-link fw-bold ${tab==='history'?'wf-tab-active':'wf-tab-inactive'}`} onClick={()=>setTab('history')}>
-                {/* UPDATED LOGIC: SCE now also shows "All Claims" */}
-                {(role === 'manager' || role === 'sce') ? `All Claims (${allClaims.length})` : `History (${history.length})`}
+            <button className={`nav-link fw-bold ${tab==='all'?'wf-tab-active':'wf-tab-inactive'}`} onClick={()=>setTab('all')}>
+                All Claims ({allClaims.length})
             </button>
         </li>
       </ul>
@@ -1182,7 +1159,7 @@ function ApprovalDashboard({ role, currentUser, claims, onRefresh, onOpenDetail,
         <>
           {pending.length === 0 && <p className="small-muted p-4 text-center">🎉 All clear! No pending claims requiring your attention.</p>}
           {pending.map(c => (
-            <div key={c.id} className="card mb-3 shadow-lg border-start border-5 border-warning rounded-4 wf-card"> {/* Added wf-card class to approval items */}
+            <div key={c.id} className="card mb-3 shadow-lg border-start border-5 border-warning rounded-4 wf-card">
               <div className="card-body">
                 <div className="d-flex justify-content-between align-items-start">
                   <div>
@@ -1215,17 +1192,16 @@ function ApprovalDashboard({ role, currentUser, claims, onRefresh, onOpenDetail,
         </>
       )}
 
-      {tab === 'history' && (
+      {/* OPTIMIZATION: Consolidated history/allClaims view */}
+      {tab === 'all' && (
         <div className="list-group">
-        {/* UPDATED LOGIC: SCE (role==='sce') now also uses the table view of allClaims */}
-        {(role === 'manager' || role === 'sce') ? (
-             <div className="table-responsive">
+            <div className="table-responsive">
                 <table className="table table-hover table-sm align-middle">
                     <thead className="table-light">
                         <tr><th>ID</th><th>Customer</th><th>Title</th><th>Raised By</th><th>Status</th><th>Raised</th><th></th></tr>
                     </thead>
                     <tbody>
-                        {allClaims.length === 0 && <tr><td colSpan="6" className="small-muted p-4 text-center">No claims found.</td></tr>}
+                        {allClaims.length === 0 && <tr><td colSpan="7" className="small-muted p-4 text-center">No claims found.</td></tr>}
                         {allClaims.map(c => (
                             <tr key={c.id} style={{cursor:'pointer'}} onClick={()=>onOpenDetail(c)} className="shadow-sm border-bottom">
                                 <td className="mono small">{c.id.slice(0,8)}</td>
@@ -1240,20 +1216,6 @@ function ApprovalDashboard({ role, currentUser, claims, onRefresh, onOpenDetail,
                     </tbody>
                 </table>
             </div>
-        ) : (
-            <>
-                {history.length === 0 && <p className="small-muted p-3 text-center">No review history yet.</p>}
-                {history.map(c => (
-                    <div key={c.id} className="list-group-item list-group-item-action d-flex justify-content-between align-items-center wf-card mb-2 p-3" onClick={()=>onOpenDetail(c)} style={{borderRadius: '12px', cursor:'pointer'}}>
-                    <div>
-                        <div className="fw-bold">{c.title}</div>
-                        <div className="small-muted">Customer: {c.customer_name} • Raised: {window.wf.formatDate(c.date_raised)}</div>
-                    </div>
-                    <span className={`status-pill ${window.wf.getStatusClass(c.status)}`}>{c.status.replace('_',' ')}</span>
-                    </div>
-                ))}
-            </>
-        )}
         </div>
       )}
     </div>
@@ -1266,14 +1228,14 @@ function ApprovalDashboard({ role, currentUser, claims, onRefresh, onOpenDetail,
 function AdminDashboard({ currentUser, claims, onRefresh, onOpenDetail, openConfirm, showNotif, openAddUserModal }) {
   
   function confirmToggle(c) {
-    const toClose = !(c.status === 'Admin_Closed' || c.status === 'Closed');
-    const actionText = toClose ? 'Close' : 'Reopen';
+    // Check if status is already 'Admin_Closed' or 'Closed' to determine the next action (Reopen)
+    const isClosed = (c.status === 'Admin_Closed' || c.status === 'Closed');
+    const actionText = isClosed ? 'Reopen' : 'Close';
     
-    // Using ConfirmModal instead of native confirm()
     openConfirm(
       `${actionText} Claim`,
       `Are you sure you want to ${actionText.toLowerCase()} claim ${c.id.slice(0,8)}? This action is powerful and updates the status.`,
-      () => toggleClose(c, toClose)
+      () => toggleClose(c, !isClosed) // Pass the boolean for the action
     );
   }
 
@@ -1291,7 +1253,6 @@ function AdminDashboard({ currentUser, claims, onRefresh, onOpenDetail, openConf
     <div className="card wf-card p-4 mb-3">
       <div className="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
         <h5 style={{color:'var(--wf-primary-dark)'}} className="mb-0 fw-bold"><i className="bi bi-person-fill-gear me-2"></i>Admin Master View</h5>
-        {/* NEW BUTTON: Button to open the Add User Modal */}
         <button className="btn btn-wf-primary fw-bold" onClick={openAddUserModal}>
           <i className="bi bi-person-plus-fill me-2"></i>Add User
         </button>
@@ -1342,7 +1303,6 @@ function App() {
   const [selectedClaim, setSelectedClaim] = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
-  // NEW STATE: State for the Add User Modal
   const [addUserModalOpen, setAddUserModal] = useState(false); 
 
 
@@ -1369,8 +1329,9 @@ function App() {
 
   async function initForSession(session) {
     try {
+      // Use the actual user profile name for display
       const profile = await window.wf.fetchUserRole(session.user.id);
-      setUserProfile({ id: session.user.id, email: profile.name, role: profile.role });
+      setUserProfile({ id: session.user.id, email: session.user.email, name: profile.name, role: profile.role });
       setRoleView(profile.role || 'field');
       setIsAdmin(profile.role === 'admin');
       await loadClaims();
@@ -1420,9 +1381,11 @@ function App() {
   }
 
   function handleRoleChange(newRole) {
-    if (!isAdmin) {
+    // Admin can switch to any role, non-admin can only view their own role.
+    if (!isAdmin && newRole !== userProfile?.role) {
       showNotif('Access Denied', 'Only Admin users can switch roles.', 'error');
-      setRoleView(userProfile?.role || 'field');
+      // Set the view back to the actual role if a non-admin user tries to switch
+      setRoleView(userProfile?.role || 'field'); 
       return;
     }
     setRoleView(newRole);
@@ -1439,13 +1402,13 @@ function App() {
 
   // Claim detail open/close handlers
   function openDetail(claim) { setSelectedClaim(claim); setDetailOpen(true); }
-  function closeDetail() { setSelectedClaim(null); setDetailOpen(false); } // This is called by the 'hidden.bs.modal' event listener now
+  function closeDetail() { setSelectedClaim(null); setDetailOpen(false); } 
   
   // Password modal handlers
   function openPasswordModal() { setPasswordModalOpen(true); }
   function closePasswordModal() { setPasswordModalOpen(false); } 
 
-  // NEW HANDLERS: Add User Modal
+  // Add User Modal handlers
   function openAddUserModal() { setAddUserModal(true); }
   function closeAddUserModal() { setAddUserModal(false); }
 
@@ -1460,7 +1423,6 @@ function App() {
         isAdmin={isAdmin}
         onChangePassword={openPasswordModal}
       />
-      {/* Moved container outside AppNavbar and added top padding for sticky header clearance */}
       <div className="container" style={{maxWidth:1200, paddingTop: '40px'}}>
       {!session || !userProfile ? (
         <div className="mt-5">
@@ -1481,7 +1443,7 @@ function App() {
                     onOpenDetail={openDetail} 
                     openConfirm={openConfirm} 
                     showNotif={showNotif}
-                    openAddUserModal={openAddUserModal} // PASSED HANDLER
+                    openAddUserModal={openAddUserModal}
                 />}
                 {loading && <Spinner />}
               </div>
@@ -1538,7 +1500,6 @@ function App() {
       <ConfirmModal open={confirmState.open} title={confirmState.title} message={confirmState.message} onCancel={closeConfirm} onConfirm={confirmProceed} />
       <ClaimDetailModal claim={selectedClaim} open={detailOpen} onClose={closeDetail} />
       <ChangePasswordModal open={passwordModalOpen} onClose={closePasswordModal} showNotif={showNotif} />
-      {/* NEW MODAL: Add User Modal */}
       <AddUserModal open={addUserModalOpen} onClose={closeAddUserModal} showNotif={showNotif} /> 
     </div>
     </>
